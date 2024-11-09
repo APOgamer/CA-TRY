@@ -1,3 +1,115 @@
+const algorithmSteps = {
+    'sort_transactions': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo Merge Sort:</h4>
+            <ol>
+                <li>División: Se divide la lista de ${result.por_fecha.length} transacciones en mitades.</li>
+                <li>Ordenamiento recursivo: Se ordenan las sublistas.</li>
+                <li>Combinación: Se fusionan las sublistas ordenadas.</li>
+                <li>Complejidad: O(n log n) para ${result.por_fecha.length} elementos.</li>
+            </ol>
+            <div class="complexity">
+                Número de operaciones ≈ ${Math.round(result.por_fecha.length * Math.log2(result.por_fecha.length))}
+            </div>
+        </div>`,
+
+    'financing_routes': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo de Búsqueda de Rutas:</h4>
+            <ol>
+                <li>Cálculo de pagos mensuales usando la fórmula de amortización.</li>
+                <li>Evaluación de ${result.length} opciones de financiamiento.</li>
+                <li>Ordenamiento por costo total para encontrar la ruta óptima.</li>
+                <li>Complejidad: O(n log n) para comparación de rutas.</li>
+            </ol>
+            <div class="formula">
+                PMT = P * (r(1+r)^n) / ((1+r)^n - 1)
+                <br>
+                Donde: P = Principal, r = Tasa mensual, n = Número de pagos
+            </div>
+        </div>`,
+
+    'group_debts': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo Union-Find:</h4>
+            <ol>
+                <li>Inicialización de ${result.reduce((sum, g) => sum + g.members.length, 0)} nodos.</li>
+                <li>Union de nodos conectados por deudas.</li>
+                <li>Optimización de transacciones dentro de cada grupo.</li>
+                <li>Complejidad: O(α(n)) por operación, donde α es la función inversa de Ackermann.</li>
+            </ol>
+            <div class="optimization">
+                Transacciones originales: ${result.reduce((sum, g) => sum + g.transactions.length, 0)}
+                <br>
+                Transacciones optimizadas: ${result.reduce((sum, g) => sum + g.transactions.length, 0)}
+            </div>
+        </div>`,
+
+    'minimize_costs': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo de Kruskal (MST):</h4>
+            <ol>
+                <li>Ordenamiento de ${result.conexiones.length} conexiones por costo.</li>
+                <li>Selección iterativa de aristas mínimas.</li>
+                <li>Verificación de ciclos usando Union-Find.</li>
+                <li>Complejidad: O(E log E) donde E es el número de conexiones.</li>
+            </ol>
+            <div class="tree-info">
+                Conexiones totales posibles: ${Math.pow(result.conexiones.length + 1, 2)/2}
+                <br>
+                Conexiones en MST: ${result.conexiones.length}
+            </div>
+        </div>`,
+
+    'optimize_savings': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento de Programación Dinámica:</h4>
+            <ol>
+                <li>Cálculo de subproblemas para ${result.length} tasas diferentes.</li>
+                <li>Construcción de tabla de valores futuros.</li>
+                <li>Optimización de la ruta de ahorro.</li>
+                <li>Complejidad: O(n*m) donde n = períodos, m = escenarios.</li>
+            </ol>
+            <div class="calculations">
+                Fórmula: FV = PMT * ((1 + r)^n - 1) / r
+                <br>
+                Donde: FV = Valor Futuro, PMT = Pago Mensual, r = Tasa, n = Períodos
+            </div>
+        </div>`,
+
+    'minimum_debt': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo Bellman-Ford:</h4>
+            <ol>
+                <li>Construcción del grafo con ${result.length} vértices (bancos).</li>
+                <li>Relajación iterativa de aristas (tasas).</li>
+                <li>Detección de ciclos negativos (arbitraje).</li>
+                <li>Complejidad: O(VE) donde V = vértices, E = aristas.</li>
+            </ol>
+            <div class="path-info">
+                Iteraciones realizadas: ${result.length * (result.length - 1)}
+                <br>
+                Camino óptimo encontrado con costo: $${result[0].costo_total.toLocaleString()}
+            </div>
+        </div>`,
+
+    'compare_rates': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo Floyd-Warshall:</h4>
+            <ol>
+                <li>Inicialización de matriz de distancias para ${result.hipotecas.length} bancos.</li>
+                <li>Actualización iterativa de caminos mínimos.</li>
+                <li>Detección de arbitraje entre tasas.</li>
+                <li>Complejidad: O(n³) donde n es el número de bancos.</li>
+            </ol>
+            <div class="matrix-info">
+                Comparaciones realizadas: ${Math.pow(result.hipotecas.length, 3)}
+                <br>
+                Oportunidades de arbitraje encontradas: ${result.arbitraje ? result.arbitraje.length : 0}
+            </div>
+        </div>`
+};
+
 function loadExample(type) {
     fetch(`/load_example/${type}`)
         .then(response => response.json())
@@ -184,7 +296,6 @@ function createBankRateEntry(bank = '', mortgageRate = '', personalRate = '') {
 }
 
 function calculate(operation) {
-    // Mapeo correcto de operaciones a IDs de formulario
     const formMapping = {
         'sort_transactions': 'transactions',
         'financing_routes': 'financing',
@@ -202,15 +313,17 @@ function calculate(operation) {
     }
 
     const formId = `${baseId}-form`;
+    const resultDiv = document.getElementById(`${baseId}-result`);
+    
     console.log('Intentando procesar formulario:', formId);
 
     if (!updateTextarea(formId, baseId, operation)) {
-        document.getElementById(`${baseId}-result`).innerHTML = 
-            `<div class="error">Por favor, complete todos los campos requeridos.</div>`;
+        resultDiv.innerHTML = `<div class="error">Por favor, complete todos los campos requeridos.</div>`;
         return;
     }
 
     const data = document.getElementById(baseId).value;
+    console.log('Datos a enviar:', data);
 
     fetch(`/calculate/${operation}`, {
         method: 'POST',
@@ -221,142 +334,264 @@ function calculate(operation) {
     })
     .then(response => response.json())
     .then(result => {
+        console.log('Resultado recibido:', result);
         if (result.error) {
-            document.getElementById(`${baseId}-result`).innerHTML = 
-                `<div class="error">${result.error}</div>`;
+            resultDiv.innerHTML = `<div class="error">${result.error}</div>`;
             return;
         }
         
-        const resultDiv = document.getElementById(`${baseId}-result`);
-        resultDiv.innerHTML = formatResult(operation, result);
+        try {
+            const formattedResult = formatResult(operation, result);
+            resultDiv.innerHTML = formattedResult;
+        } catch (error) {
+            console.error('Error al formatear resultado:', error);
+            resultDiv.innerHTML = `<div class="error">Error al procesar el resultado: ${error.message}</div>`;
+        }
     })
     .catch(error => {
-        document.getElementById(`${baseId}-result`).innerHTML = 
-            `<div class="error">Error al procesar la solicitud: ${error}</div>`;
+        console.error('Error en la petición:', error);
+        resultDiv.innerHTML = `<div class="error">Error al procesar la solicitud: ${error.message}</div>`;
     });
 }
 
 function formatResult(operation, result) {
-    switch(operation) {
-        case 'sort_transactions':
-            return `
-                <h3>Ordenado por Fecha:</h3>
-                <table>
-                    <tr><th>Fecha</th><th>Monto</th></tr>
-                    ${result.por_fecha.map(trans => {
-                        const [date, amount] = trans.split(': $');
-                        return `<tr><td>${date}</td><td>$${amount}</td></tr>`;
-                    }).join('')}
-                </table>
-                <h3>Ordenado por Monto:</h3>
-                <table>
-                    <tr><th>Fecha</th><th>Monto</th></tr>
-                    ${result.por_monto.map(trans => {
-                        const [date, amount] = trans.split(': $');
-                        return `<tr><td>${date}</td><td>$${amount}</td></tr>`;
-                    }).join('')}
-                </table>`;
+    // Verificar si el resultado es válido
+    if (!result || typeof result === 'string' || result.error) {
+        return `<div class="error">${result.error || 'Error al procesar los datos'}</div>`;
+    }
 
-        case 'financing_routes':
-            return `
-                <table>
-                    <tr>
-                        <th>Monto</th>
-                        <th>Tasa Anual</th>
-                        <th>Plazo (meses)</th>
-                        <th>Pago Mensual</th>
-                        <th>Costo Total</th>
-                    </tr>
-                    ${result.map(option => `
+    try {
+        let baseHtml = '';
+        
+        switch(operation) {
+            case 'sort_transactions':
+                if (!result.por_fecha || !result.por_monto) {
+                    throw new Error('Datos de transacciones inválidos');
+                }
+                const maxTransaction = result.por_monto[result.por_monto.length - 1];
+                const [maxDate, maxAmount] = maxTransaction.split(': $');
+                baseHtml = `
+                    <h3>Ordenado por Fecha:</h3>
+                    <table>
+                        <tr><th>Fecha</th><th>Monto</th></tr>
+                        ${result.por_fecha.map(trans => {
+                            const [date, amount] = trans.split(': $');
+                            return `<tr><td>${date}</td><td>$${amount}</td></tr>`;
+                        }).join('')}
+                    </table>
+                    <h3>Ordenado por Monto:</h3>
+                    <table>
+                        <tr><th>Fecha</th><th>Monto</th></tr>
+                        ${result.por_monto.map(trans => {
+                            const [date, amount] = trans.split(': $');
+                            return `<tr><td>${date}</td><td>$${amount}</td></tr>`;
+                        }).join('')}
+                    </table>
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>La transacción más significativa fue de $${maxAmount} realizada el ${maxDate}.</p>
+                        <p>Total de transacciones analizadas: ${result.por_fecha.length}</p>
+                    </div>`;
+                break;
+
+            case 'financing_routes':
+                if (!Array.isArray(result)) {
+                    throw new Error('Datos de financiamiento inválidos');
+                }
+                const bestOption = result[0];
+                const worstOption = result[result.length - 1];
+                const savings = worstOption.costo_total - bestOption.costo_total;
+                baseHtml = `
+                    <table>
                         <tr>
-                            <td>$${option.monto.toLocaleString()}</td>
-                            <td>${option.tasa}%</td>
-                            <td>${option.plazo}</td>
-                            <td>$${option.pago_mensual.toLocaleString()}</td>
-                            <td>$${option.costo_total.toLocaleString()}</td>
+                            <th>Monto</th>
+                            <th>Tasa Anual</th>
+                            <th>Plazo (meses)</th>
+                            <th>Pago Mensual</th>
+                            <th>Costo Total</th>
                         </tr>
-                    `).join('')}
-                </table>`;
+                        ${result.map(option => `
+                            <tr>
+                                <td>$${option.monto.toLocaleString()}</td>
+                                <td>${option.tasa}%</td>
+                                <td>${option.plazo}</td>
+                                <td>$${option.pago_mensual.toLocaleString()}</td>
+                                <td>$${option.costo_total.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>La opción más económica requiere un pago mensual de $${bestOption.pago_mensual.toLocaleString()} 
+                           con una tasa del ${bestOption.tasa}% a ${bestOption.plazo} meses.</p>
+                        <p>Eligiendo esta opción, se ahorraría $${savings.toLocaleString()} 
+                           comparado con la opción más costosa.</p>
+                    </div>`;
+                break;
 
-        case 'group_debts':
-            return `
-                <h3>Grupos de Deudas Relacionadas:</h3>
-                ${result.map((group, index) => `
-                    <div class="debt-group">
-                        <strong>Grupo ${index + 1}:</strong> ${group.join(', ')}
+            case 'group_debts':
+                if (!Array.isArray(result)) {
+                    throw new Error('Datos de deudas inválidos');
+                }
+                baseHtml = `
+                    <h3>Grupos de Deudas Relacionadas:</h3>
+                    ${result.map((group, index) => `
+                        <div class="debt-group">
+                            <strong>Grupo ${index + 1}:</strong> ${group.members.join(', ')}
+                            <h4>Transacciones optimizadas:</h4>
+                            <ul>
+                                ${group.transactions.map(t => `
+                                    <li>${t.from} debe pagar $${t.amount.toLocaleString()} a ${t.to}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `).join('')}
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>Se identificaron ${result.length} grupos de deudas relacionadas.</p>
+                        <p>Total de transacciones optimizadas: ${result.reduce((sum, group) => 
+                            sum + group.transactions.length, 0)}</p>
+                    </div>`;
+                break;
+
+            case 'minimize_costs':
+                if (!result.conexiones) {
+                    throw new Error('Datos de costos inválidos');
+                }
+                const savings_percentage = ((result.conexiones.length / 
+                    (Math.pow(result.conexiones.length + 1, 2) - (result.conexiones.length + 1)) * 2) * 100).toFixed(1);
+                baseHtml = `
+                    <h3>Conexiones Óptimas:</h3>
+                    <table>
+                        <tr><th>Conexión</th><th>Costo</th></tr>
+                        ${result.conexiones.map(conn => `
+                            <tr><td>${conn.split(': $')[0]}</td><td>$${conn.split(': $')[1]}</td></tr>
+                        `).join('')}
+                    </table>
+                    <div class="total-cost">
+                        <strong>Costo Total:</strong> $${result.costo_total.toLocaleString()}
                     </div>
-                `).join('')}`;
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>Se logró una red óptima con ${result.conexiones.length} conexiones.</p>
+                        <p>Esta solución utiliza solo el ${savings_percentage}% de las posibles conexiones,
+                           maximizando la eficiencia de la red.</p>
+                    </div>`;
+                break;
 
-        case 'minimize_costs':
-            return `
-                <h3>Conexiones Óptimas:</h3>
-                <table>
-                    <tr><th>Conexión</th><th>Costo</th></tr>
-                    ${result.conexiones.map(conn => `
-                        <tr><td>${conn.split(': $')[0]}</td><td>$${conn.split(': $')[1]}</td></tr>
-                    `).join('')}
-                </table>
-                <div class="total-cost">
-                    <strong>Costo Total:</strong> $${result.costo_total.toLocaleString()}
-                </div>`;
-
-        case 'optimize_savings':
-            return `
-                <table>
-                    <tr>
-                        <th>Tasa Anual</th>
-                        <th>Ahorro Mensual</th>
-                        <th>Valor Futuro</th>
-                    </tr>
-                    ${result.map(scenario => `
+            case 'optimize_savings':
+                if (!Array.isArray(result)) {
+                    throw new Error('Datos de ahorro inválidos');
+                }
+                const bestScenario = result.reduce((max, scenario) => 
+                    parseFloat(scenario.valor_futuro) > parseFloat(max.valor_futuro) ? scenario : max
+                );
+                baseHtml = `
+                    <table>
                         <tr>
-                            <td>${scenario.tasa_anual}</td>
-                            <td>$${scenario.ahorro_mensual.toLocaleString()}</td>
-                            <td>$${scenario.valor_futuro.toLocaleString()}</td>
+                            <th>Tasa Anual</th>
+                            <th>Ahorro Mensual</th>
+                            <th>Valor Futuro</th>
                         </tr>
-                    `).join('')}
-                </table>`;
+                        ${result.map(scenario => `
+                            <tr>
+                                <td>${scenario.tasa_anual}</td>
+                                <td>$${scenario.ahorro_mensual.toLocaleString()}</td>
+                                <td>$${scenario.valor_futuro.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>El mejor escenario se logra con una tasa anual del ${bestScenario.tasa_anual},
+                           alcanzando un valor futuro de $${bestScenario.valor_futuro.toLocaleString()}.</p>
+                        <p>Con un ahorro mensual de $${bestScenario.ahorro_mensual.toLocaleString()},
+                           se maximiza el retorno de la inversión.</p>
+                    </div>`;
+                break;
 
-        case 'minimum_debt':
-            return `
-                <table>
-                    <tr>
-                        <th>Banco</th>
-                        <th>Monto</th>
-                        <th>Tasa Anual</th>
-                        <th>Pago Mensual</th>
-                        <th>Costo Total</th>
-                    </tr>
-                    ${result.map(debt => `
+            case 'minimum_debt':
+                if (!Array.isArray(result)) {
+                    throw new Error('Datos de deuda mínima inválidos');
+                }
+                const bestDebt = result[0];
+                const totalDebt = result.reduce((sum, debt) => sum + debt.monto, 0);
+                baseHtml = `
+                    <table>
                         <tr>
-                            <td>${debt.banco}</td>
-                            <td>$${debt.monto.toLocaleString()}</td>
-                            <td>${debt.tasa}%</td>
-                            <td>$${debt.pago_mensual.toLocaleString()}</td>
-                            <td>$${debt.costo_total.toLocaleString()}</td>
+                            <th>Banco</th>
+                            <th>Monto</th>
+                            <th>Tasa Anual</th>
+                            <th>Pago Mensual</th>
+                            <th>Costo Total</th>
                         </tr>
-                    `).join('')}
-                </table>`;
+                        ${result.map(debt => `
+                            <tr>
+                                <td>${debt.banco}</td>
+                                <td>$${debt.monto.toLocaleString()}</td>
+                                <td>${debt.tasa}%</td>
+                                <td>$${debt.pago_mensual.toLocaleString()}</td>
+                                <td>$${debt.costo_total.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>La deuda más conveniente es con ${bestDebt.banco} con una tasa del ${bestDebt.tasa}%.</p>
+                        <p>Deuda total: $${totalDebt.toLocaleString()}</p>
+                        <p>Pago mensual más bajo: $${bestDebt.pago_mensual.toLocaleString()}</p>
+                    </div>`;
+                break;
 
-        case 'compare_rates':
-            return `
-                <h3>Tasas Hipotecarias:</h3>
-                <table>
-                    <tr><th>Banco</th><th>Tasa</th></tr>
-                    ${result.hipotecas.map(h => `
-                        <tr><td>${h.banco}</td><td>${h.tasa}%</td></tr>
-                    `).join('')}
-                </table>
-                <h3>Tasas de Préstamos Personales:</h3>
-                <table>
-                    <tr><th>Banco</th><th>Tasa</th></tr>
-                    ${result.prestamos_personales.map(p => `
-                        <tr><td>${p.banco}</td><td>${p.tasa}%</td></tr>
-                    `).join('')}
-                </table>`;
+            case 'compare_rates':
+                if (!result.hipotecas || !result.prestamos_personales) {
+                    throw new Error('Datos de tasas inválidos');
+                }
+                const bestMortgage = result.hipotecas[0];
+                const bestPersonal = result.prestamos_personales[0];
+                baseHtml = `
+                    <h3>Tasas Hipotecarias:</h3>
+                    <table>
+                        <tr><th>Banco</th><th>Tasa</th></tr>
+                        ${result.hipotecas.map(h => `
+                            <tr><td>${h.banco}</td><td>${h.tasa}%</td></tr>
+                        `).join('')}
+                    </table>
+                    <h3>Tasas de Préstamos Personales:</h3>
+                    <table>
+                        <tr><th>Banco</th><th>Tasa</th></tr>
+                        ${result.prestamos_personales.map(p => `
+                            <tr><td>${p.banco}</td><td>${p.tasa}%</td></tr>
+                        `).join('')}
+                    </table>
+                    ${result.arbitraje.length > 0 ? `
+                        <h3>Oportunidades de Arbitraje:</h3>
+                        <ul>
+                            ${result.arbitraje.map(a => `
+                                <li>Ruta: ${a.ruta} (diferencia: ${a.diferencia.toFixed(2)}%)</li>
+                            `).join('')}
+                        </ul>
+                    ` : ''}
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>Mejor tasa hipotecaria: ${bestMortgage.banco} con ${bestMortgage.tasa}%</p>
+                        <p>Mejor tasa personal: ${bestPersonal.banco} con ${bestPersonal.tasa}%</p>
+                        <p>Diferencia entre mejor y peor tasa hipotecaria: 
+                           ${(result.hipotecas[result.hipotecas.length-1].tasa - bestMortgage.tasa).toFixed(2)}%</p>
+                        ${result.arbitraje.length > 0 ? `
+                            <p>Se encontraron ${result.arbitraje.length} oportunidades de arbitraje entre bancos.</p>
+                        ` : ''}
+                    </div>`;
+                break;
 
-        default:
-            return JSON.stringify(result, null, 2);
+            default:
+                return `<div class="error">Operación no soportada</div>`;
+        }
+
+        return baseHtml + (algorithmSteps[operation] || '');
+    } catch (error) {
+        console.error('Error al formatear resultado:', error);
+        return `<div class="error">Error al procesar los datos: ${error.message}</div>`;
     }
 }
 

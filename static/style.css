@@ -294,3 +294,61 @@ h3 {
     margin: 5px 0;
     line-height: 1.4;
 }
+
+.conclusion {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #e8f6f3;
+    border-left: 4px solid #2ecc71;
+    border-radius: 0 4px 4px 0;
+}
+
+.conclusion h4 {
+    color: #27ae60;
+    margin: 0 0 10px 0;
+}
+
+.conclusion p {
+    margin: 5px 0;
+    color: #2c3e50;
+    line-height: 1.5;
+}
+
+.algorithm-steps {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f0f7fb;
+    border-left: 4px solid #3498db;
+    border-radius: 0 4px 4px 0;
+}
+
+.algorithm-steps h4 {
+    color: #2980b9;
+    margin: 0 0 10px 0;
+}
+
+.algorithm-steps ol {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.algorithm-steps li {
+    color: #34495e;
+    margin: 5px 0;
+    line-height: 1.5;
+}
+
+.complexity, .formula, .optimization, .tree-info, .calculations, .path-info, .matrix-info {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #edf7ff;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.formula {
+    text-align: center;
+    font-style: italic;
+}
