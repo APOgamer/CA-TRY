@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Financiera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Calculadora Financiera</h1>
+        
+        <!-- Ordenar Transacciones -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Ordenar Transacciones</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('transactions-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="transactions-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Ordena cronológicamente o por monto las transacciones financieras para facilitar el análisis y seguimiento.</p>
+                <h4>¿Por qué Merge Sort?</h4>
+                <p>Se utiliza el algoritmo Merge Sort porque:</p>
+                <ul>
+                    <li>Es eficiente para grandes conjuntos de datos (complejidad O(n log n))</li>
+                    <li>Mantiene el orden relativo de elementos iguales (estabilidad)</li>
+                    <li>Es predecible en su rendimiento independiente del orden inicial</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="transactions-form">
+                    <div class="transaction-entry">
+                        <input type="date" class="date-input" required>
+                        <input type="number" step="0.01" min="0" placeholder="Monto" class="amount-input" required>
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('transactions')">Cargar Ejemplo</button>
+                    <button onclick="calculate('sort_transactions')">Calcular</button>
+                </div>
+                <textarea id="transactions" style="display: none;"></textarea>
+            </div>
+            <div id="transactions-result" class="result"></div>
+        </div>
+
+        <!-- Rutas de Financiamiento -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Rutas de Financiamiento</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('financing-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="financing-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Analiza diferentes opciones de financiamiento para encontrar la ruta más económica considerando tasas, plazos y montos.</p>
+                <h4>¿Por qué Búsqueda de Rutas?</h4>
+                <ul>
+                    <li>Permite comparar múltiples opciones simultáneamente</li>
+                    <li>Considera el costo total incluyendo intereses y plazos</li>
+                    <li>Identifica la opción más económica a largo plazo</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="financing-form">
+                    <div class="financing-entry">
+                        <input type="number" step="1000" min="0" placeholder="Monto del préstamo" class="amount-input" required>
+                        <input type="number" step="0.01" min="0" max="100" placeholder="Tasa anual %" class="rate-input" required>
+                        <input type="number" step="1" min="1" max="360" placeholder="Plazo (meses)" class="term-input" required>
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('financing')">Cargar Ejemplo</button>
+                    <button onclick="calculate('financing_routes')">Calcular</button>
+                </div>
+                <textarea id="financing" style="display: none;"></textarea>
+            </div>
+            <div id="financing-result" class="result"></div>
+        </div>
+
+        <!-- Agrupación de Deudas -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Agrupación de Deudas</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('debts-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="debts-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Identifica grupos de personas conectadas por deudas para facilitar la consolidación y negociación de pagos.</p>
+                <h4>¿Por qué Union-Find?</h4>
+                <ul>
+                    <li>Eficiente para encontrar conexiones en redes de deudas</li>
+                    <li>Permite identificar ciclos de deuda</li>
+                    <li>Facilita la consolidación de deudas entre grupos</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="debts-form">
+                    <div class="debt-entry">
+                        <input type="text" placeholder="Deudor" class="debtor-input">
+                        <input type="number" step="0.01" min="0" placeholder="Monto" class="amount-input">
+                        <input type="text" placeholder="Acreedor" class="creditor-input">
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('debts')">Cargar Ejemplo</button>
+                    <button onclick="calculate('group_debts')">Calcular</button>
+                </div>
+                <textarea id="debts" style="display: none;"></textarea>
+            </div>
+            <div id="debts-result" class="result"></div>
+        </div>
+
+        <!-- Minimización de Costos -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Minimización de Costos de Sucursales</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('branches-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="branches-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Encuentra la forma más económica de conectar todas las sucursales minimizando los costos de infraestructura.</p>
+                <h4>¿Por qué Kruskal (MST)?</h4>
+                <ul>
+                    <li>Garantiza la conexión más económica entre todas las sucursales</li>
+                    <li>Evita ciclos innecesarios que aumentarían costos</li>
+                    <li>Optimiza la inversión en infraestructura</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="branches-form">
+                    <div class="branch-entry">
+                        <input type="text" placeholder="Ciudad 1" class="city1-input">
+                        <input type="text" placeholder="Ciudad 2" class="city2-input">
+                        <input type="number" step="1" min="0" placeholder="Costo de conexión" class="cost-input">
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('branches')">Cargar Ejemplo</button>
+                    <button onclick="calculate('minimize_costs')">Calcular</button>
+                </div>
+                <textarea id="branches" style="display: none;"></textarea>
+            </div>
+            <div id="branches-result" class="result"></div>
+        </div>
+
+        <!-- Optimización de Ahorros -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Optimización de Ahorros</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('savings-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="savings-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Calcula diferentes escenarios de ahorro para alcanzar metas financieras considerando tasas de interés variables.</p>
+                <h4>¿Por qué Programación Dinámica?</h4>
+                <ul>
+                    <li>Optimiza el plan de ahorro considerando múltiples variables</li>
+                    <li>Permite ajustar estrategias según cambios en tasas</li>
+                    <li>Calcula el mejor camino para alcanzar la meta</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="savings-form">
+                    <input type="number" step="1000" min="0" placeholder="Meta de ahorro" id="savings-goal">
+                    <input type="number" step="1" min="1" max="30" placeholder="Plazo en años" id="savings-years">
+                    <input type="number" step="0.01" min="0" placeholder="Ahorro mensual sugerido" id="monthly-savings">
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('savings')">Cargar Ejemplo</button>
+                    <button onclick="calculate('optimize_savings')">Calcular</button>
+                </div>
+                <textarea id="savings" style="display: none;"></textarea>
+            </div>
+            <div id="savings-result" class="result"></div>
+        </div>
+
+        <!-- Cálculo de Deuda Mínima -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Cálculo de Deuda Mínima</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('min-debt-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="min-debt-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Encuentra la estrategia de pago más económica considerando diferentes deudas e intereses.</p>
+                <h4>¿Por qué Bellman-Ford?</h4>
+                <ul>
+                    <li>Maneja tasas de interés variables y plazos diferentes</li>
+                    <li>Considera el impacto de los intereses compuestos</li>
+                    <li>Identifica la ruta de pago más económica</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="min-debt-form">
+                    <div class="debt-min-entry">
+                        <input type="text" placeholder="Nombre del banco" class="bank-input">
+                        <input type="number" step="0.01" min="0" placeholder="Monto" class="amount-input">
+                        <input type="number" step="0.01" min="0" max="100" placeholder="Tasa anual %" class="rate-input">
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('min-debt')">Cargar Ejemplo</button>
+                    <button onclick="calculate('minimum_debt')">Calcular</button>
+                </div>
+                <textarea id="min-debt" style="display: none;"></textarea>
+            </div>
+            <div id="min-debt-result" class="result"></div>
+        </div>
+
+        <!-- Comparación de Tasas -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Comparación de Tasas entre Bancos</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('rates-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="rates-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Compara las tasas de diferentes productos bancarios para encontrar las mejores opciones disponibles.</p>
+                <h4>¿Por qué Floyd-Warshall?</h4>
+                <ul>
+                    <li>Permite comparar todas las combinaciones de tasas</li>
+                    <li>Identifica oportunidades de arbitraje entre bancos</li>
+                    <li>Encuentra las mejores tasas para cada tipo de préstamo</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="rates-form">
+                    <div class="bank-rate-entry">
+                        <input type="text" placeholder="Nombre del banco" class="bank-input">
+                        <div class="rates-inputs">
+                            <label>Hipoteca:</label>
+                            <input type="number" step="0.01" min="0" max="100" placeholder="Tasa %" class="mortgage-rate">
+                            <label>Préstamo personal:</label>
+                            <input type="number" step="0.01" min="0" max="100" placeholder="Tasa %" class="personal-rate">
+                        </div>
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('rates')">Cargar Ejemplo</button>
+                    <button onclick="calculate('compare_rates')">Calcular</button>
+                </div>
+                <textarea id="rates" style="display: none;"></textarea>
+            </div>
+            <div id="rates-result" class="result"></div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html> 
