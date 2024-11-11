@@ -232,12 +232,86 @@ const algorithmVisualizations = {
                 }
             }
         });
+
+        // Agregar visualización del proceso del algoritmo
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo de Búsqueda de Rutas:</h4>
+                ${result.map((option, index) => `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Paso ${index + 1}: Evaluación de Opción</div>
+                        <div class="step-description">
+                            Calculando costo total para préstamo de $${option.monto.toLocaleString()}
+                        </div>
+                        <div class="step-arrays">
+                            <div class="array">
+                                <span>Principal: $${option.monto.toLocaleString()}</span>
+                                <span>Tasa: ${option.tasa}%</span>
+                                <span>Plazo: ${option.plazo} meses</span>
+                                <span>→</span>
+                                <span>Pago: $${option.pago_mensual.toLocaleString()}</span>
+                                <span>Total: $${option.costo_total.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+                <div class="merge-sort-step">
+                    <div class="step-number">Resultado Final</div>
+                    <div class="step-description">
+                        Ruta más económica encontrada: Opción con costo total de $${result[0].costo_total.toLocaleString()}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
+        container.appendChild(graphCtx);
+        container.appendChild(explorationCtx);
+        container.appendChild(resultCtx);
     },
 
     'group_debts': (result, containerId) => {
         const container = document.getElementById(containerId);
         const networkContainer = document.createElement('div');
         networkContainer.style.height = '400px';
+        
+        // Agregar visualización del proceso Union-Find
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo Union-Find:</h4>
+                ${result.map((group, index) => `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Grupo ${index + 1}: Formación de Conjunto</div>
+                        <div class="step-description">
+                            Uniendo miembros relacionados por deudas
+                        </div>
+                        <div class="step-arrays">
+                            <div class="array">
+                                <span>Miembros: ${group.members.join(', ')}</span>
+                            </div>
+                        </div>
+                        <div class="step-description">
+                            Optimización de transacciones dentro del grupo:
+                        </div>
+                        <div class="step-arrays">
+                            ${group.transactions.map(t => `
+                                <div class="array">
+                                    <span>${t.from}</span>
+                                    <span>→</span>
+                                    <span>$${t.amount.toLocaleString()}</span>
+                                    <span>→</span>
+                                    <span>${t.to}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
         container.appendChild(networkContainer);
 
         // Visualizar el proceso de Union-Find
@@ -294,6 +368,43 @@ const algorithmVisualizations = {
         const container = document.getElementById(containerId);
         const networkContainer = document.createElement('div');
         networkContainer.style.height = '400px';
+        
+        // Agregar visualización del proceso de Kruskal
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo de Kruskal (MST):</h4>
+                ${result.conexiones.map((conn, index) => {
+                    const [cities, cost] = conn.split(': $');
+                    const [city1, city2] = cities.split(' - ');
+                    return `
+                        <div class="merge-sort-step">
+                            <div class="step-number">Paso ${index + 1}: Selección de Arista</div>
+                            <div class="step-description">
+                                Evaluando conexión de menor costo que no forma ciclo
+                            </div>
+                            <div class="step-arrays">
+                                <div class="array">
+                                    <span>${city1}</span>
+                                    <span>↔</span>
+                                    <span>$${cost}</span>
+                                    <span>↔</span>
+                                    <span>${city2}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+                <div class="merge-sort-step">
+                    <div class="step-number">Árbol de Expansión Mínimo Completado</div>
+                    <div class="step-description">
+                        Costo total optimizado: $${result.costo_total.toLocaleString()}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
         container.appendChild(networkContainer);
 
         // Visualizar el proceso de Kruskal MST
@@ -351,10 +462,39 @@ const algorithmVisualizations = {
     'optimize_savings': (result, containerId) => {
         const container = document.getElementById(containerId);
         const dpCanvas = document.createElement('canvas');
+        
+        // Agregar visualización del proceso de Programación Dinámica
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso de Programación Dinámica para Optimización de Ahorros:</h4>
+                ${result.map((scenario, index) => `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Escenario ${index + 1} - Perfil ${scenario.perfil}</div>
+                        <div class="step-description">
+                            Evaluando estrategia de inversión con tasa ${scenario.tasa_anual}
+                        </div>
+                        <div class="step-arrays">
+                            <div class="array">
+                                <span>Ahorro Mensual: $${scenario.ahorro_mensual.toLocaleString()}</span>
+                                <span>→</span>
+                                <span>Valor Futuro: $${scenario.valor_futuro.toLocaleString()}</span>
+                            </div>
+                            <div class="array">
+                                <span>Retorno: $${scenario.retorno_inversion.toLocaleString()}</span>
+                                <span>ROI: ${scenario.roi_porcentaje}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
         container.appendChild(dpCanvas);
 
         // Visualizar la tabla de programación dinámica
-        const labels = result.map(r => r.tasa_anual);
+        const labels = result.map(r => `${r.perfil} (${r.tasa_anual})`);
         const datasets = [
             {
                 label: 'Valor Futuro',
@@ -364,8 +504,8 @@ const algorithmVisualizations = {
                 fill: true
             },
             {
-                label: 'Ahorro Mensual',
-                data: result.map(r => r.ahorro_mensual),
+                label: 'Retorno de Inversión',
+                data: result.map(r => r.retorno_inversion),
                 borderColor: 'rgb(255, 99, 132)',
                 backgroundColor: 'rgba(255, 99, 132, 0.2)',
                 fill: true
@@ -384,12 +524,30 @@ const algorithmVisualizations = {
                             display: true,
                             text: 'Valor ($)'
                         }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
                     }
                 },
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Optimización de Ahorros - Programación Dinámica'
+                        text: 'Optimización de Ahorros - Análisis por Perfil de Riesgo'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const scenario = result[context.dataIndex];
+                                return [
+                                    `${context.dataset.label}: $${context.raw.toLocaleString()}`,
+                                    `ROI: ${scenario.roi_porcentaje}%`,
+                                    `Ahorro Mensual: $${scenario.ahorro_mensual.toLocaleString()}`
+                                ];
+                            }
+                        }
                     }
                 }
             }
@@ -399,6 +557,33 @@ const algorithmVisualizations = {
     'minimum_debt': (result, containerId) => {
         const container = document.getElementById(containerId);
         const bellmanCanvas = document.createElement('canvas');
+        
+        // Agregar visualización del proceso de Bellman-Ford
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo Bellman-Ford:</h4>
+                ${result.map((debt, index) => `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Iteración ${index + 1}</div>
+                        <div class="step-description">
+                            Evaluando ruta de pago para ${debt.banco}
+                        </div>
+                        <div class="step-arrays">
+                            <div class="array">
+                                <span>Monto: $${debt.monto.toLocaleString()}</span>
+                                <span>Tasa: ${debt.tasa}%</span>
+                                <span>→</span>
+                                <span>Mensual: $${debt.pago_mensual.toLocaleString()}</span>
+                                <span>Total: $${debt.costo_total.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
         container.appendChild(bellmanCanvas);
 
         // Visualizar el proceso de Bellman-Ford
@@ -454,6 +639,54 @@ const algorithmVisualizations = {
     'compare_rates': (result, containerId) => {
         const container = document.getElementById(containerId);
         const floydCanvas = document.createElement('canvas');
+        
+        // Agregar visualización del proceso de Floyd-Warshall
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo Floyd-Warshall:</h4>
+                <div class="merge-sort-step">
+                    <div class="step-number">Análisis de Tasas Hipotecarias</div>
+                    <div class="step-arrays">
+                        ${result.hipotecas.map(h => `
+                            <div class="array">
+                                <span>${h.banco}</span>
+                                <span>→</span>
+                                <span>${h.tasa}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="merge-sort-step">
+                    <div class="step-number">Análisis de Préstamos Personales</div>
+                    <div class="step-arrays">
+                        ${result.prestamos_personales.map(p => `
+                            <div class="array">
+                                <span>${p.banco}</span>
+                                <span>→</span>
+                                <span>${p.tasa}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ${result.arbitraje.length > 0 ? `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Oportunidades de Arbitraje Detectadas</div>
+                        <div class="step-arrays">
+                            ${result.arbitraje.map(a => `
+                                <div class="array">
+                                    <span>${a.ruta}</span>
+                                    <span>→</span>
+                                    <span>Diferencia: ${a.diferencia.toFixed(2)}%</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
         container.appendChild(floydCanvas);
 
         // Visualizar el proceso de Floyd-Warshall
