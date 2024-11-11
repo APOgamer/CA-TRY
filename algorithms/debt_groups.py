@@ -1,9 +1,9 @@
 def group_debts(data):
-    """Implementa el algoritmo Union-Find para agrupar deudas relacionadas y optimizar pagos"""
+    """grupos"""
     try:
         lines = data.split('\n')
         clients = {}
-        debt_graph = {}  # Grafo de deudas
+        debt_graph = {}  # grafo
         
         def find(client):
             if clients[client] != client:
@@ -16,7 +16,7 @@ def group_debts(data):
             if root1 != root2:
                 clients[root2] = root1
         
-        # Construir grafo de deudas
+        # deudas
         for line in lines:
             debtor, rest = line.split(' debe $')
             amount, creditor = rest.split(' a ')
@@ -37,7 +37,6 @@ def group_debts(data):
                 clients[creditor] = creditor
             union(debtor, creditor)
         
-        # Agrupar clientes relacionados
         groups = {}
         for client in clients:
             root = find(client)
@@ -45,11 +44,10 @@ def group_debts(data):
                 groups[root] = []
             groups[root].append(client)
         
-        # Optimizar transacciones dentro de cada grupo
         optimized_groups = []
         for group in groups.values():
             group_transactions = []
-            # Encontrar deudores y acreedores en el grupo
+            #  deudores y acreedores en el grupo
             debtors = [(c, debt_graph[c]['balance']) for c in group if debt_graph[c]['balance'] < 0]
             creditors = [(c, debt_graph[c]['balance']) for c in group if debt_graph[c]['balance'] > 0]
             

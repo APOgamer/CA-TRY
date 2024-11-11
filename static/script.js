@@ -219,7 +219,6 @@ function fillFormFromExample(type, exampleData) {
     }
 }
 
-// Funciones auxiliares para crear entradas de formulario
 function createTransactionEntry(date = '', amount = '') {
     const div = document.createElement('div');
     div.className = 'transaction-entry';
@@ -588,10 +587,8 @@ function formatResult(operation, result) {
                 return `<div class="error">Operación no soportada</div>`;
         }
 
-        // Agregar contenedor para la visualización
         baseHtml += '<div class="visualization-container" id="viz-' + operation + '"></div>';
         
-        // Después de agregar el HTML al DOM
         setTimeout(() => {
             if (algorithmVisualizations[operation]) {
                 algorithmVisualizations[operation](result, 'viz-' + operation);
@@ -612,7 +609,7 @@ function initializeForms() {
             const entryType = container.id.replace('-form', '');
             let newEntry;
             
-            // Crear una nueva entrada vacía del tipo correcto
+            // una nueva entrada  del tipo correcto
             switch(entryType) {
                 case 'transactions':
                     newEntry = createTransactionEntry();
@@ -668,6 +665,7 @@ function updateTextarea(formId, baseId, operation) {
         let text = '';
         let isValid = false;
 
+        // validacion
         switch(operation) {
             case 'sort_transactions':
                 const transactions = Array.from(form.querySelectorAll('.transaction-entry'))
@@ -799,15 +797,12 @@ function toggleTutorial(tutorialId) {
     const tutorial = document.getElementById(tutorialId);
     const isHidden = tutorial.style.display === 'none';
     
-    // Ocultar todos los tutoriales primero
     document.querySelectorAll('.tutorial').forEach(t => {
         t.style.display = 'none';
     });
     
-    // Mostrar u ocultar el tutorial seleccionado
     tutorial.style.display = isHidden ? 'block' : 'none';
     
-    // Cambiar el texto del botón
     const button = tutorial.previousElementSibling.querySelector('.tutorial-btn');
     button.textContent = isHidden ? 'Ocultar Tutorial' : 'Ver Tutorial';
 }

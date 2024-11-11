@@ -2,11 +2,12 @@ def calculate_monthly_payment(principal, monthly_rate, term):
     return principal * (monthly_rate * (1 + monthly_rate)**term) / ((1 + monthly_rate)**term - 1)
 
 def find_financing_routes(data):
-    """Implementa el algoritmo de búsqueda de rutas de financiamiento"""
+    """financiamiento"""
     try:
         options = [line.strip().split(', ') for line in data.split('\n')]
         processed_options = []
         
+        # calculo
         for option in options:
             amount = float(option[0].split('$')[1])
             rate = float(option[1].split('%')[0])

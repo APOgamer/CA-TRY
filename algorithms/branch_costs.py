@@ -1,10 +1,11 @@
 def minimize_branch_costs(data):
-    """Implementa el algoritmo de Kruskal para MST"""
+    """costos"""
     try:
         lines = data.split('\n')
         edges = []
         vertices = set()
         
+        # aristas
         for line in lines:
             cities, cost = line.split(': $')
             city1, city2 = cities.split(' - ')

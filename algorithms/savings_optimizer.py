@@ -1,19 +1,18 @@
 def optimize_savings(data):
-    """Implementa programación dinámica para optimización de ahorros"""
+    """ahorros"""
     try:
         lines = data.split('\n')
         goal = float(lines[0].split('$')[1])
         years = int(lines[1].split(':')[1].split()[0])
         monthly_save = float(lines[2].split('$')[1])
         
-        # Tasas base para diferentes tipos de inversión
+        # perfiles
         base_rates = {
-            'Conservador': [0.04, 0.06],      # 4-6% anual
-            'Moderado': [0.07, 0.12],         # 7-12% anual
-            'Agresivo': [0.13, 0.18]          # 13-18% anual
+            'Conservador': [0.04, 0.06],      # bajo
+            'Moderado': [0.07, 0.12],         # medio
+            'Agresivo': [0.13, 0.18]          # alto
         }
         
-        # Matriz de programación dinámica para almacenar los mejores resultados
         dp = {}
         scenarios = []
         
@@ -22,14 +21,12 @@ def optimize_savings(data):
             future_value = 0
             accumulated = monthly_amount
             
-            # Usar programación dinámica para calcular el valor futuro
             for month in range(months):
                 month_key = (monthly_amount, rate, month)
                 if month_key in dp:
                     future_value = dp[month_key]
                 else:
                     if month > 0:
-                        # Aplicar interés al acumulado y sumar el nuevo ahorro
                         accumulated = accumulated * (1 + real_rate/12) + monthly_amount
                         future_value = accumulated
                     else:
@@ -40,19 +37,15 @@ def optimize_savings(data):
         
         months = years * 12
         
-        # Calcular escenarios para cada perfil de riesgo
         for profile, rate_range in base_rates.items():
             min_rate, max_rate = rate_range
-            # Calcular tasas intermedias
             rates = [min_rate + (max_rate - min_rate) * i / 2 for i in range(3)]
             
             for rate in rates:
-                # Calcular diferentes montos de ahorro mensual
                 for adjustment in [0.8, 1.0, 1.2]:  # -20%, +0%, +20% del ahorro sugerido
                     adjusted_monthly = monthly_save * adjustment
                     future_value = calculate_future_value(adjusted_monthly, rate, months)
                     
-                    # Calcular métricas adicionales
                     total_invested = adjusted_monthly * months
                     investment_return = future_value - total_invested
                     roi_percentage = (investment_return / total_invested) * 100
@@ -66,7 +59,6 @@ def optimize_savings(data):
                         'roi_porcentaje': round(roi_percentage, 2)
                     })
         
-        # Ordenar escenarios por valor futuro
         scenarios.sort(key=lambda x: x['valor_futuro'], reverse=True)
         
         return scenarios

@@ -1,11 +1,14 @@
 def merge_sort(arr, key=lambda x: x):
+    """ordenar"""
     if len(arr) <= 1:
         return arr
     
+    # dividir
     mid = len(arr) // 2
     left = merge_sort(arr[:mid], key)
     right = merge_sort(arr[mid:], key)
     
+    # combinar
     return merge(left, right, key)
 
 def merge(left, right, key):

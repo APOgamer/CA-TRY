@@ -62,18 +62,18 @@ def generate_transaction_example():
     current_date = datetime.now()
     
     for _ in range(5):
-        amount = round(random.uniform(1000, 10000), 2)  # Montos más realistas
+        amount = round(random.uniform(1000, 10000), 2)
         date = (current_date - timedelta(days=random.randint(0, 30))).strftime('%Y-%m-%d')
         transactions.append(f"{date}: ${amount}")
     
-    return "\n".join(sorted(transactions))  # Ordenar por fecha para mejor visualización
+    return "\n".join(sorted(transactions))  
 
 def generate_financing_example():
     options = []
-    for i in range(3):  # Reducir a 3 opciones para mejor visualización
-        amount = random.randint(50000, 500000)  # Montos más realistas
-        rate = round(random.uniform(8, 15), 2)   # Tasas más realistas
-        term = random.choice([12, 24, 36, 48, 60])  # Plazos comunes
+    for i in range(3):  
+        amount = random.randint(50000, 500000) 
+        rate = round(random.uniform(8, 15), 2)  
+        term = random.choice([12, 24, 36, 48, 60]) 
         options.append(f"Opción {i+1}: ${amount}, {rate}% anual, {term} meses")
     return "\n".join(options)
 
@@ -82,13 +82,13 @@ def generate_debts_example():
     debts = []
     used_pairs = set()
     
-    for _ in range(4):  # Reducir a 4 deudas para mejor visualización
+    for _ in range(4):  
         while True:
             debtor = random.choice(clients)
             creditor = random.choice([c for c in clients if c != debtor])
             if (debtor, creditor) not in used_pairs:
                 used_pairs.add((debtor, creditor))
-                amount = round(random.uniform(500, 5000), 2)  # Montos más realistas
+                amount = round(random.uniform(500, 5000), 2) 
                 debts.append(f"{debtor} debe ${amount} a {creditor}")
                 break
     
@@ -99,15 +99,13 @@ def generate_branches_example():
     connections = []
     used_pairs = set()
     
-    # Generar suficientes conexiones para formar un árbol mínimo
     for i in range(len(cities)-1):
         city1 = cities[i]
         city2 = cities[i+1]
-        cost = random.randint(5000, 20000)  # Costos más realistas
+        cost = random.randint(5000, 20000)
         connections.append(f"{city1} - {city2}: ${cost}")
         used_pairs.add((city1, city2))
     
-    # Agregar algunas conexiones adicionales
     for _ in range(2):
         while True:
             city1, city2 = random.sample(cities, 2)
@@ -120,9 +118,9 @@ def generate_branches_example():
     return "\n".join(connections)
 
 def generate_savings_example():
-    goal = random.randint(100000, 500000)  # Metas más realistas
-    years = random.randint(5, 15)          # Plazos más realistas
-    monthly_save = round(goal / (years * 12) * 1.1, 2)  # Ajuste realista
+    goal = random.randint(100000, 500000)  
+    years = random.randint(5, 15)         
+    monthly_save = round(goal / (years * 12) * 1.1, 2)  
     return f"Meta: ${goal}\nPlazo: {years} años\nAhorro mensual sugerido: ${monthly_save}"
 
 def generate_min_debt_example():
@@ -130,8 +128,8 @@ def generate_min_debt_example():
     debts = []
     
     for bank in banks:
-        amount = random.randint(10000, 100000)  # Montos más realistas
-        rate = round(random.uniform(5, 15), 2)   # Tasas más realistas
+        amount = random.randint(10000, 100000)  
+        rate = round(random.uniform(5, 15), 2)  
         debts.append(f"{bank}: ${amount} al {rate}% anual")
     
     return "\n".join(debts)
@@ -141,8 +139,8 @@ def generate_rates_example():
     rates = []
     
     for bank in banks:
-        mortgage_rate = round(random.uniform(2.5, 4.5), 2)  # Tasas hipotecarias más realistas
-        personal_rate = round(random.uniform(6, 12), 2)     # Tasas de préstamos más realistas
+        mortgage_rate = round(random.uniform(2.5, 4.5), 2) 
+        personal_rate = round(random.uniform(6, 12), 2)     
         rates.append(f"{bank}:\nHipoteca: {mortgage_rate}%\nPréstamo personal: {personal_rate}%")
     
     return "\n".join(rates)

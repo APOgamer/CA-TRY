@@ -1,12 +1,9 @@
-// Importar las bibliotecas necesarias en index.html
-// <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-// <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
 const algorithmVisualizations = {
     'sort_transactions': (result, containerId) => {
         const container = document.getElementById(containerId);
         
-        // Crear dos canvas: uno para el proceso y otro para el resultado
         const processContainer = document.createElement('div');
         processContainer.style.marginBottom = '20px';
         const resultCanvas = document.createElement('canvas');
@@ -14,10 +11,8 @@ const algorithmVisualizations = {
         container.appendChild(processContainer);
         container.appendChild(resultCanvas);
         
-        // Datos originales
         const originalData = result.por_fecha.map(t => parseFloat(t.split('$')[1]));
         
-        // Simular el proceso de Merge Sort
         function mergeSortWithSteps(arr) {
             const steps = [{
                 type: 'initial',
@@ -73,10 +68,8 @@ const algorithmVisualizations = {
             return steps;
         }
         
-        // Generar los pasos del algoritmo
         const sortingSteps = mergeSortWithSteps(originalData);
         
-        // Visualizar el proceso
         processContainer.innerHTML = `
             <div class="merge-sort-visualization">
                 <h4>Proceso de Merge Sort</h4>
@@ -100,7 +93,6 @@ const algorithmVisualizations = {
             </div>
         `;
         
-        // Visualizar el resultado final
         new Chart(resultCanvas, {
             type: 'bar',
             data: {
@@ -137,7 +129,6 @@ const algorithmVisualizations = {
     'financing_routes': (result, containerId) => {
         const container = document.getElementById(containerId);
         
-        // Crear tres canvas: grafo de búsqueda, proceso de exploración y resultado
         const graphCtx = document.createElement('canvas');
         const explorationCtx = document.createElement('canvas');
         const resultCtx = document.createElement('canvas');
@@ -146,7 +137,6 @@ const algorithmVisualizations = {
         container.appendChild(explorationCtx);
         container.appendChild(resultCtx);
         
-        // Visualización del grafo de búsqueda
         const nodes = result.map((opt, index) => ({
             id: index,
             label: `Opción ${index + 1}`,
@@ -168,7 +158,6 @@ const algorithmVisualizations = {
             }
         }
 
-        // Crear red de visualización
         const network = new vis.Network(graphCtx, {
             nodes: new vis.DataSet(nodes),
             edges: new vis.DataSet(edges)
@@ -182,7 +171,6 @@ const algorithmVisualizations = {
             }
         });
 
-        // Visualización del proceso de exploración
         new Chart(explorationCtx, {
             type: 'scatter',
             data: {
@@ -212,7 +200,6 @@ const algorithmVisualizations = {
             }
         });
 
-        // Visualización del resultado
         new Chart(resultCtx, {
             type: 'line',
             data: {
@@ -233,7 +220,6 @@ const algorithmVisualizations = {
             }
         });
 
-        // Agregar visualización del proceso del algoritmo
         const processContainer = document.createElement('div');
         processContainer.innerHTML = `
             <div class="merge-sort-visualization">
@@ -276,7 +262,6 @@ const algorithmVisualizations = {
         const networkContainer = document.createElement('div');
         networkContainer.style.height = '400px';
         
-        // Agregar visualización del proceso Union-Find
         const processContainer = document.createElement('div');
         processContainer.innerHTML = `
             <div class="merge-sort-visualization">
@@ -314,11 +299,9 @@ const algorithmVisualizations = {
         container.appendChild(processContainer);
         container.appendChild(networkContainer);
 
-        // Visualizar el proceso de Union-Find
         const nodes = new vis.DataSet();
         const edges = new vis.DataSet();
         
-        // Crear nodos para cada persona
         result.forEach((group, groupIndex) => {
             group.members.forEach(member => {
                 nodes.add({
@@ -332,7 +315,6 @@ const algorithmVisualizations = {
                 });
             });
             
-            // Agregar aristas para las transacciones optimizadas
             group.transactions.forEach(t => {
                 edges.add({
                     from: t.from,
@@ -369,7 +351,6 @@ const algorithmVisualizations = {
         const networkContainer = document.createElement('div');
         networkContainer.style.height = '400px';
         
-        // Agregar visualización del proceso de Kruskal
         const processContainer = document.createElement('div');
         processContainer.innerHTML = `
             <div class="merge-sort-visualization">
@@ -407,7 +388,7 @@ const algorithmVisualizations = {
         container.appendChild(processContainer);
         container.appendChild(networkContainer);
 
-        // Visualizar el proceso de Kruskal MST
+        //  el proceso de Kruskal MST
         const nodes = new vis.DataSet();
         const edges = new vis.DataSet();
         const cities = new Set();
@@ -419,7 +400,7 @@ const algorithmVisualizations = {
             cities.add(city2);
         });
 
-        // Crear nodos
+        //  nodos
         Array.from(cities).forEach(city => {
             nodes.add({
                 id: city,
@@ -431,7 +412,7 @@ const algorithmVisualizations = {
             });
         });
 
-        // Agregar aristas del MST
+        //  aristas del MST
         result.conexiones.forEach((conn, index) => {
             const [cities, cost] = conn.split(': $');
             const [city1, city2] = cities.split(' - ');
@@ -463,7 +444,7 @@ const algorithmVisualizations = {
         const container = document.getElementById(containerId);
         const dpCanvas = document.createElement('canvas');
         
-        // Agregar visualización del proceso de Programación Dinámica
+        //  proceso 
         const processContainer = document.createElement('div');
         processContainer.innerHTML = `
             <div class="merge-sort-visualization">
@@ -493,7 +474,7 @@ const algorithmVisualizations = {
         container.appendChild(processContainer);
         container.appendChild(dpCanvas);
 
-        // Visualizar la tabla de programación dinámica
+        //  la tabla 
         const labels = result.map(r => `${r.perfil} (${r.tasa_anual})`);
         const datasets = [
             {
@@ -558,7 +539,7 @@ const algorithmVisualizations = {
         const container = document.getElementById(containerId);
         const bellmanCanvas = document.createElement('canvas');
         
-        // Agregar visualización del proceso de Bellman-Ford
+        //  de Bellman-Ford
         const processContainer = document.createElement('div');
         processContainer.innerHTML = `
             <div class="merge-sort-visualization">
@@ -586,7 +567,7 @@ const algorithmVisualizations = {
         container.appendChild(processContainer);
         container.appendChild(bellmanCanvas);
 
-        // Visualizar el proceso de Bellman-Ford
+        // Bellman-Ford
         const steps = result.map((debt, index) => ({
             x: index,
             y: debt.costo_total,
@@ -640,7 +621,7 @@ const algorithmVisualizations = {
         const container = document.getElementById(containerId);
         const floydCanvas = document.createElement('canvas');
         
-        // Agregar visualización del proceso de Floyd-Warshall
+        // Floyd-Warshall
         const processContainer = document.createElement('div');
         processContainer.innerHTML = `
             <div class="merge-sort-visualization">
@@ -689,7 +670,7 @@ const algorithmVisualizations = {
         container.appendChild(processContainer);
         container.appendChild(floydCanvas);
 
-        // Visualizar el proceso de Floyd-Warshall
+        // Floyd-Warshall
         const banks = result.hipotecas.map(h => h.banco);
         const datasets = [
             {
@@ -748,7 +729,7 @@ const algorithmVisualizations = {
     }
 }; 
 
-// Función auxiliar para merge sort
+//  merge sort
 function mergeArrays(left, right) {
     const result = [];
     let i = 0, j = 0;

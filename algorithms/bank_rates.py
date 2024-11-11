@@ -1,12 +1,12 @@
 def compare_bank_rates(data):
-    """Implementa el algoritmo de Floyd-Warshall para comparar tasas entre bancos"""
+    """tasas"""
     try:
         lines = data.split('\n')
         banks = {}
         rates_matrix = {}
         current_bank = None
         
-        # Parsear los datos de entrada
+        # parseo
         for line in lines:
             if ':' in line and 'Hipoteca' not in line and 'Préstamo' not in line:
                 current_bank = line.split(':')[0]
@@ -15,7 +15,7 @@ def compare_bank_rates(data):
                 product, rate = line.split(': ')
                 banks[current_bank][product] = float(rate.split('%')[0])
                 
-                # Inicializar matriz de tasas
+                # matriz
                 if current_bank not in rates_matrix:
                     rates_matrix[current_bank] = {}
                 for other_bank in banks:
@@ -24,19 +24,18 @@ def compare_bank_rates(data):
                     rates_matrix[current_bank][other_bank] = float('inf')
                     rates_matrix[other_bank][current_bank] = float('inf')
         
-        # Construir matriz de diferencias de tasas
+        # diferencias
         bank_list = list(banks.keys())
         for i in range(len(bank_list)):
             for j in range(len(bank_list)):
                 if i != j:
                     bank1, bank2 = bank_list[i], bank_list[j]
-                    # Calcular diferencia de tasas
                     for product in ['Hipoteca', 'Préstamo personal']:
                         if product in banks[bank1] and product in banks[bank2]:
                             diff = banks[bank1][product] - banks[bank2][product]
                             rates_matrix[bank1][bank2] = min(rates_matrix[bank1][bank2], diff)
         
-        # Aplicar Floyd-Warshall para encontrar arbitraje
+        # arbitraje
         arbitrage_opportunities = []
         for k in bank_list:
             for i in bank_list:
@@ -48,7 +47,7 @@ def compare_bank_rates(data):
                             'diferencia': abs(rates_matrix[i][j])
                         })
         
-        # Preparar resultados
+        # resultados
         hipotecas = [{'banco': bank, 'tasa': banks[bank]['Hipoteca']} 
                     for bank in banks if 'Hipoteca' in banks[bank]]
         prestamos = [{'banco': bank, 'tasa': banks[bank]['Préstamo personal']} 
