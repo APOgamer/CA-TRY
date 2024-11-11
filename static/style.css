@@ -352,3 +352,89 @@ h3 {
     text-align: center;
     font-style: italic;
 }
+
+.visualization-container {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-height: 400px;
+}
+
+.merge-sort-visualization {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.merge-sort-step {
+    margin: 15px 0;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    background-color: white;
+}
+
+.step-number {
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.step-description {
+    color: #34495e;
+    font-family: monospace;
+    margin-bottom: 10px;
+}
+
+.step-arrays {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.array {
+    padding: 5px 10px;
+    background-color: #e8f6f3;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.array span {
+    display: inline-block;
+    padding: 2px 5px;
+    margin: 0 2px;
+    background-color: #2ecc71;
+    color: white;
+    border-radius: 3px;
+}
+
+.split {
+    display: flex;
+    gap: 10px;
+}
+
+.array.left {
+    background-color: #ebf5fb;
+}
+
+.array.left span {
+    background-color: #3498db;
+}
+
+.array.right {
+    background-color: #fef5e7;
+}
+
+.array.right span {
+    background-color: #f39c12;
+}
+
+.array.merged {
+    background-color: #e8f6f3;
+}
+
+.array.merged span {
+    background-color: #2ecc71;
+}

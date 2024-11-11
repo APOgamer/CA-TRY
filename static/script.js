@@ -588,7 +588,17 @@ function formatResult(operation, result) {
                 return `<div class="error">Operación no soportada</div>`;
         }
 
-        return baseHtml + (algorithmSteps[operation] || '');
+        // Agregar contenedor para la visualización
+        baseHtml += '<div class="visualization-container" id="viz-' + operation + '"></div>';
+        
+        // Después de agregar el HTML al DOM
+        setTimeout(() => {
+            if (algorithmVisualizations[operation]) {
+                algorithmVisualizations[operation](result, 'viz-' + operation);
+            }
+        }, 100);
+
+        return baseHtml + (algorithmSteps[operation] ? algorithmSteps[operation](result) : '');
     } catch (error) {
         console.error('Error al formatear resultado:', error);
         return `<div class="error">Error al procesar los datos: ${error.message}</div>`;
