@@ -10,10 +10,53 @@ from algorithms import (
 )
 import random
 from datetime import datetime, timedelta
+import time
 from werkzeug.middleware.proxy_fix import ProxyFix
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import logging
+import undetected_chromedriver as uc
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from functools import lru_cache
+import json
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
+import logging
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Global cache for rates
+_rates_cache = {
+    'data': None,
+    'timestamp': None
+}
+
+def get_cached_rates():
+    """Obtiene las tasas del cache o las actualiza si es necesario"""
+    global _rates_cache
+    
+    # Si no hay cache o han pasado más de 24 horas
+    if (_rates_cache['data'] is None or 
+        _rates_cache['timestamp'] is None or 
+        datetime.now() - _rates_cache['timestamp'] > timedelta(hours=24)):
+        
+        print("Fetching fresh rates")
+        rates = fetch_sbs_rates()
+        if rates:
+            _rates_cache['data'] = rates
+            _rates_cache['timestamp'] = datetime.now()
+    else:
+        print("Using cached rates")
+    
+    return _rates_cache['data']
 
 @app.route('/')
 def index():
@@ -21,16 +64,21 @@ def index():
 
 @app.route('/load_example/<type>')
 def load_example(type):
-    examples = {
-        'transactions': generate_transaction_example(),
-        'financing': generate_financing_example(),
-        'debts': generate_debts_example(),
-        'branches': generate_branches_example(),
-        'savings': generate_savings_example(),
-        'min-debt': generate_min_debt_example(),
-        'rates': generate_rates_example()
-    }
-    return jsonify({'example': examples.get(type, "Ejemplo no disponible")})
+    if type == 'rates':
+        result = generate_rates_example()
+    else:
+        examples = {
+            'transactions': generate_transaction_example(),
+            'financing': generate_financing_example(),
+            'debts': generate_debts_example(),
+            'branches': generate_branches_example(),
+            'savings': generate_savings_example(),
+            'min-debt': generate_min_debt_example(),
+        }
+        result = examples.get(type, "Ejemplo no disponible")
+    
+    print(f"Returning example for {type}:", result)
+    return jsonify({'example': result})
 
 algorithms = {
     'sort_transactions': sort_transactions,
@@ -134,16 +182,111 @@ def generate_min_debt_example():
     
     return "\n".join(debts)
 
+def fetch_sbs_rates():
+    driver = None
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--start-maximized')
+        
+        print("Initializing Chrome...")
+        driver = webdriver.Chrome(options=chrome_options)
+        
+        print("Navigating to URL...")
+        url = "https://www.sbs.gob.pe/app/pp/EstadisticasSAEEPortal/Paginas/TIActivaTipoCreditoEmpresa.aspx?tip=B"
+        driver.get(url)
+        
+        time.sleep(10)
+        
+        print("Looking for table...")
+        table = driver.find_element(By.ID, "ctl00_cphContent_rpgActualMn_ctl00_DataZone_DT")
+        
+        print("Processing table data...")
+        rows = table.find_elements(By.TAG_NAME, "tr")
+        print(f"Found {len(rows)} rows")
+        
+        # Obtener todas las filas primero
+        table_data = []
+        for row in rows:
+            cells = row.find_elements(By.TAG_NAME, "td")
+            row_data = [cell.text.strip() for cell in cells]
+            if row_data:  # Solo agregar filas no vacías
+                table_data.append(row_data)
+        
+        # Seleccionar solo las filas que nos interesan
+        selected_rows = []
+        if table_data:
+            # Última fila (préstamos hipotecarios)
+            selected_rows.append(table_data[-1])
+            # Séptima fila desde el final
+            selected_rows.append(table_data[-8])
+        
+        print(f"Selected rows:")
+        for row in selected_rows:
+            print(row)
+            
+        driver.quit()
+        return selected_rows
+
+    except Exception as e:
+        logging.error(f"Error fetching SBS rates: {str(e)}")
+        print(f"Detailed error: {str(e)}")
+        if driver:
+            try:
+                driver.save_screenshot("error_screenshot.png")
+                print("Screenshot saved as error_screenshot.png")
+            except:
+                pass
+            driver.quit()
+        return None
+
 def generate_rates_example():
-    banks = ['Santander', 'BBVA', 'CaixaBank', 'Sabadell', 'Bankinter']
-    rates = []
+    try:
+        selected_rows = get_cached_rates()
+        
+        if not selected_rows or len(selected_rows) < 2:
+            raise ValueError("Could not fetch rates data")
+        
+        # Obtener los datos de las filas
+        hipotecario_row = selected_rows[0]
+        personal_row = selected_rows[1]
+        
+        # Lista de bancos disponibles
+        banks = ['BBVA', 'Bancom', 'Crédito', 'Pichincha', 'BIF', 'Scotiabank', 
+                'Citibank', 'Interbank', 'Mibanco', 'GNB', 'Falabella', 'Santander']
+        
+        # Crear lista de bancos que tienen al menos una tasa disponible
+        valid_banks = []
+        for i, bank in enumerate(banks, start=1):
+            hipoteca = hipotecario_row[i] if hipotecario_row[i] != '-' else 'N/A'
+            personal = personal_row[i] if personal_row[i] != '-' else 'N/A'
+            
+            if hipoteca != 'N/A' and personal != 'N/A':
+                valid_banks.append((bank, i))  # Guardar el banco y su índice
+        
+        if not valid_banks:
+            return "No hay tasas disponibles en este momento"
+        
+        # Seleccionar 4 bancos aleatorios
+        selected_banks = random.sample(valid_banks, min(4, len(valid_banks)))
+        
+        rates = []
+        for bank, i in selected_banks:
+            hipoteca = hipotecario_row[i] if hipotecario_row[i] != '-' else 'N/A'
+            personal = personal_row[i] if personal_row[i] != '-' else 'N/A'
+            
+            rates.append(
+                f"{bank}:\n"
+                f"Hipoteca: {hipoteca}%\n"
+                f"Préstamo personal: {personal}%"
+            )
+        
+        return "\n\n".join(rates)
     
-    for bank in banks:
-        mortgage_rate = round(random.uniform(2.5, 4.5), 2) 
-        personal_rate = round(random.uniform(6, 12), 2)     
-        rates.append(f"{bank}:\nHipoteca: {mortgage_rate}%\nPréstamo personal: {personal_rate}%")
-    
-    return "\n".join(rates)
+    except Exception as e:
+        logging.error(f"Error generating rates example: {str(e)}")
+        return "Error al obtener tasas en tiempo real. Por favor, intente más tarde."
 
 if __name__ == '__main__':
     try:
