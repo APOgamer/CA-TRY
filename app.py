@@ -10,23 +10,10 @@ from algorithms import (
 )
 import random
 from datetime import datetime, timedelta
-import time
 from werkzeug.middleware.proxy_fix import ProxyFix
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
-import logging
-import undetected_chromedriver as uc
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from functools import lru_cache
-import json
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import time
 import logging
 
