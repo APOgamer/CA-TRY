@@ -20,17 +20,15 @@ import logging
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Global cache for rates
+
 _rates_cache = {
     'data': None,
     'timestamp': None
 }
 
 def get_cached_rates():
-    """Obtiene las tasas del cache o las actualiza si es necesario"""
     global _rates_cache
-    
-    # Si no hay cache o han pasado más de 24 horas
+
     if (_rates_cache['data'] is None or 
         _rates_cache['timestamp'] is None or 
         datetime.now() - _rates_cache['timestamp'] > timedelta(hours=24)):
@@ -193,20 +191,16 @@ def fetch_sbs_rates():
         rows = table.find_elements(By.TAG_NAME, "tr")
         print(f"Found {len(rows)} rows")
         
-        # Obtener todas las filas primero
         table_data = []
         for row in rows:
             cells = row.find_elements(By.TAG_NAME, "td")
             row_data = [cell.text.strip() for cell in cells]
-            if row_data:  # Solo agregar filas no vacías
+            if row_data:
                 table_data.append(row_data)
         
-        # Seleccionar solo las filas que nos interesan
         selected_rows = []
         if table_data:
-            # Última fila (préstamos hipotecarios)
             selected_rows.append(table_data[-1])
-            # Séptima fila desde el final
             selected_rows.append(table_data[-8])
         
         print(f"Selected rows:")
@@ -234,28 +228,26 @@ def generate_rates_example():
         
         if not selected_rows or len(selected_rows) < 2:
             raise ValueError("Could not fetch rates data")
-        
-        # Obtener los datos de las filas
+ 
         hipotecario_row = selected_rows[0]
         personal_row = selected_rows[1]
         
-        # Lista de bancos disponibles
+        # bancos
         banks = ['BBVA', 'Bancom', 'Crédito', 'Pichincha', 'BIF', 'Scotiabank', 
                 'Citibank', 'Interbank', 'Mibanco', 'GNB', 'Falabella', 'Santander']
         
-        # Crear lista de bancos que tienen al menos una tasa disponible
         valid_banks = []
         for i, bank in enumerate(banks, start=1):
             hipoteca = hipotecario_row[i] if hipotecario_row[i] != '-' else 'N/A'
             personal = personal_row[i] if personal_row[i] != '-' else 'N/A'
             
             if hipoteca != 'N/A' and personal != 'N/A':
-                valid_banks.append((bank, i))  # Guardar el banco y su índice
+                valid_banks.append((bank, i))
         
         if not valid_banks:
             return "No hay tasas disponibles en este momento"
         
-        # Seleccionar 4 bancos aleatorios
+        # seleccionar cuatro bancos aleatorios
         selected_banks = random.sample(valid_banks, min(4, len(valid_banks)))
         
         rates = []

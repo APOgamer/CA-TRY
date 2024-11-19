@@ -1,5 +1,5 @@
 def group_debts(data):
-    """grupos"""
+
     try:
         lines = data.split('\n')
         clients = {}
@@ -51,11 +51,11 @@ def group_debts(data):
             debtors = [(c, debt_graph[c]['balance']) for c in group if debt_graph[c]['balance'] < 0]
             creditors = [(c, debt_graph[c]['balance']) for c in group if debt_graph[c]['balance'] > 0]
             
-            # Ordenar por monto
+            # ordenar por monto
             debtors.sort(key=lambda x: x[1])
             creditors.sort(key=lambda x: x[1], reverse=True)
             
-            # Optimizar pagos
+            # esto sirve para optimizar pagos
             i, j = 0, 0
             while i < len(debtors) and j < len(creditors):
                 debtor, debt = debtors[i]

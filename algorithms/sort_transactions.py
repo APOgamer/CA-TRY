@@ -1,14 +1,13 @@
 def merge_sort(arr, key=lambda x: x):
-    """ordenar"""
     if len(arr) <= 1:
         return arr
     
-    # dividir
+
     mid = len(arr) // 2
     left = merge_sort(arr[:mid], key)
     right = merge_sort(arr[mid:], key)
     
-    # combinar
+
     return merge(left, right, key)
 
 def merge(left, right, key):
@@ -28,7 +27,8 @@ def merge(left, right, key):
     return result
 
 def sort_transactions(data):
-    """Implementa el algoritmo de ordenamiento por fecha y monto"""
+    #  algoritmo para ordenar por fecha y monto
+
     try:
         transactions = [line.strip().split(': $') for line in data.split('\n')]
         transactions = [(date, float(amount)) for date, amount in transactions]

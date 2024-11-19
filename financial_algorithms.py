@@ -1,12 +1,10 @@
 def sort_transactions(data):
-    """Implementa el algoritmo de ordenamiento por fecha y monto"""
+    # algoritmo para ordenar por fecha y monto
     try:
         transactions = [line.strip().split(': $') for line in data.split('\n')]
         transactions = [(date, float(amount)) for date, amount in transactions]
         
-        # Ordenar por fecha usando merge sort
         sorted_by_date = merge_sort(transactions, key=lambda x: x[0])
-        # Ordenar por monto usando merge sort
         sorted_by_amount = merge_sort(transactions, key=lambda x: x[1])
         
         return {
@@ -42,8 +40,7 @@ def merge(left, right, key):
     result.extend(right[j:])
     return result
 
-def find_financing_routes(data):
-    """Implementa el algoritmo de búsqueda de rutas de financiamiento"""
+def find_financing_routes(data):  # busqueda de rutas de financiamiento
     try:
         options = [line.strip().split(', ') for line in data.split('\n')]
         processed_options = []
@@ -72,12 +69,11 @@ def calculate_monthly_payment(principal, monthly_rate, term):
     return principal * (monthly_rate * (1 + monthly_rate)**term) / ((1 + monthly_rate)**term - 1)
 
 def group_debts(data):
-    """Implementa el algoritmo Union-Find para agrupar deudas relacionadas"""
+    # aca se aplico union find
     try:
         lines = data.split('\n')
         clients = {}
         
-        # Crear estructura Union-Find
         def find(client):
             if clients[client] != client:
                 clients[client] = find(clients[client])
@@ -89,7 +85,6 @@ def group_debts(data):
             if root1 != root2:
                 clients[root2] = root1
         
-        # Procesar deudas
         for line in lines:
             debtor, creditor = line.split(' debe ')[0], line.split(' a ')[1]
             if debtor not in clients:
@@ -98,7 +93,6 @@ def group_debts(data):
                 clients[creditor] = creditor
             union(debtor, creditor)
         
-        # Agrupar clientes relacionados
         groups = {}
         for client in clients:
             root = find(client)
@@ -110,8 +104,7 @@ def group_debts(data):
     except Exception as e:
         return {'error': str(e)}
 
-def minimize_branch_costs(data):
-    """Implementa el algoritmo de Kruskal para MST"""
+def minimize_branch_costs(data): # MST-kruskal
     try:
         lines = data.split('\n')
         edges = []
@@ -124,8 +117,6 @@ def minimize_branch_costs(data):
             edges.append((cost, city1, city2))
             vertices.add(city1)
             vertices.add(city2)
-        
-        # Implementar Kruskal
         parent = {city: city for city in vertices}
         
         def find(city):
@@ -152,23 +143,20 @@ def minimize_branch_costs(data):
     except Exception as e:
         return {'error': str(e)}
 
-def optimize_savings(data):
-    """Implementa programación dinámica para optimización de ahorros"""
+def optimize_savings(data): # progrmacion dinamica
     try:
         lines = data.split('\n')
         goal = float(lines[0].split('$')[1])
         years = int(lines[1].split(':')[1].split()[0])
         monthly_save = float(lines[2].split('$')[1])
         
-        # Calcular diferentes escenarios de ahorro
         scenarios = []
-        interest_rates = [0.03, 0.05, 0.07]  # Diferentes tasas de interés
+        interest_rates = [0.03, 0.05, 0.07]  # tasas de interes
         
         for rate in interest_rates:
             monthly_rate = rate / 12
             months = years * 12
             
-            # Calcular el valor futuro con diferentes aportaciones mensuales
             future_value = 0
             for month in range(months):
                 future_value += monthly_save
@@ -184,8 +172,7 @@ def optimize_savings(data):
     except Exception as e:
         return {'error': str(e)}
 
-def calculate_minimum_debt(data):
-    """Implementa el algoritmo de Bellman-Ford para encontrar la ruta de pago mínima"""
+def calculate_minimum_debt(data):#bellman ford
     try:
         lines = data.split('\n')
         debts = []
@@ -197,7 +184,7 @@ def calculate_minimum_debt(data):
             rate = float(rate.split('%')[0])
             
             monthly_rate = rate/100/12
-            term = 24  # Plazo fijo de 24 meses para comparación
+            term = 24
             monthly_payment = calculate_monthly_payment(amount, monthly_rate, term)
             total_cost = monthly_payment * term
             
@@ -213,8 +200,7 @@ def calculate_minimum_debt(data):
     except Exception as e:
         return {'error': str(e)}
 
-def compare_bank_rates(data):
-    """Implementa el algoritmo de Floyd-Warshall para comparar tasas entre bancos"""
+def compare_bank_rates(data): # floyd warshall
     try:
         lines = data.split('\n')
         banks = {}
@@ -228,7 +214,6 @@ def compare_bank_rates(data):
                 product, rate = line.split(': ')
                 banks[current_bank][product] = float(rate.split('%')[0])
         
-        # Comparar tasas entre bancos
         comparison = []
         for bank, rates in banks.items():
             for product, rate in rates.items():

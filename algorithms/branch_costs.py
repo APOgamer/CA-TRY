@@ -1,5 +1,4 @@
 def minimize_branch_costs(data):
-    """costos"""
     try:
         lines = data.split('\n')
         edges = []

@@ -1,5 +1,5 @@
 def optimize_savings(data):
-    """ahorros"""
+    # ahorros
     try:
         lines = data.split('\n')
         goal = float(lines[0].split('$')[1])
@@ -8,16 +8,16 @@ def optimize_savings(data):
         
         # perfiles
         base_rates = {
-            'Conservador': [0.04, 0.06],      # bajo
-            'Moderado': [0.07, 0.12],         # medio
-            'Agresivo': [0.13, 0.18]          # alto
+            'Conservador': [0.04, 0.06],
+            'Moderado': [0.07, 0.12],
+            'Agresivo': [0.13, 0.18] 
         }
         
         dp = {}
         scenarios = []
         
         def calculate_future_value(monthly_amount, rate, months, inflation=0.04):
-            real_rate = (1 + rate) / (1 + inflation) - 1  # Ajuste por inflación
+            real_rate = (1 + rate) / (1 + inflation) - 1
             future_value = 0
             accumulated = monthly_amount
             
@@ -42,7 +42,7 @@ def optimize_savings(data):
             rates = [min_rate + (max_rate - min_rate) * i / 2 for i in range(3)]
             
             for rate in rates:
-                for adjustment in [0.8, 1.0, 1.2]:  # -20%, +0%, +20% del ahorro sugerido
+                for adjustment in [0.8, 1.0, 1.2]:
                     adjusted_monthly = monthly_save * adjustment
                     future_value = calculate_future_value(adjusted_monthly, rate, months)
                     
