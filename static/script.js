@@ -421,7 +421,7 @@ function formatResult(operation, result) {
                     </table>
                     <div class="conclusion">
                         <h4>Conclusión:</h4>
-                        <p>La opción más económica requiere un pago mensual de $${bestOption.pago_mensual.toLocaleString()} 
+                        <p>La opción m��s económica requiere un pago mensual de $${bestOption.pago_mensual.toLocaleString()} 
                            con una tasa del ${bestOption.tasa}% a ${bestOption.plazo} meses.</p>
                         <p>Eligiendo esta opción, se ahorraría $${savings.toLocaleString()} 
                            comparado con la opción más costosa.</p>
@@ -808,3 +808,18 @@ function toggleTutorial(tutorialId) {
 }
 
 document.addEventListener('DOMContentLoaded', initializeForms); 
+
+function compararTasas() {
+    // Obtener los datos
+    const banco1 = document.getElementById('banco1').value;
+    const banco2 = document.getElementById('banco2').value;
+    
+    // Validar que se hayan seleccionado dos bancos diferentes
+    if (banco1 === banco2) {
+        alert('Por favor seleccione dos bancos diferentes');
+        return;
+    }
+
+    // Realizar la comparación y mostrar el gráfico
+    actualizarGrafico(banco1, banco2);
+} 

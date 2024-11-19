@@ -219,6 +219,9 @@
         <div class="card">
             <div class="card-header">
                 <h2>Comparación de Tasas entre Bancos</h2>
+                <p class="data-source">
+                    Dataset extraído de: <a href="https://www.sbs.gob.pe/app/pp/EstadisticasSAEEPortal/Paginas/TIActivaTipoCreditoEmpresa.aspx?tip=B" target="_blank">SBS - Tasas Activas por Tipo de Crédito y Empresa</a>
+                </p>
                 <button class="tutorial-btn" onclick="toggleTutorial('rates-tutorial')">Ver Tutorial</button>
             </div>
             <div class="tutorial" id="rates-tutorial" style="display: none;">
@@ -245,7 +248,7 @@
                     </div>
                 </div>
                 <div class="button-group">
-                    <button onclick="loadExample('rates')">Cargar Ejemplo</button>
+                    <button onclick="loadExample('rates')">Cargar Datos de Dataset</button>
                     <button onclick="calculate('compare_rates')">Calcular</button>
                 </div>
                 <textarea id="rates" style="display: none;"></textarea>
