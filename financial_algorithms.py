@@ -104,7 +104,7 @@ def group_debts(data):
     except Exception as e:
         return {'error': str(e)}
 
-def minimize_branch_costs(data): # MST-kruskal
+def minimize_branch_costs(data): # kruskal
     try:
         lines = data.split('\n')
         edges = []

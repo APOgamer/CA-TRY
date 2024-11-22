@@ -810,16 +810,13 @@ function toggleTutorial(tutorialId) {
 document.addEventListener('DOMContentLoaded', initializeForms); 
 
 function compararTasas() {
-    // Obtener los datos
     const banco1 = document.getElementById('banco1').value;
     const banco2 = document.getElementById('banco2').value;
     
-    // Validar que se hayan seleccionado dos bancos diferentes
     if (banco1 === banco2) {
         alert('Por favor seleccione dos bancos diferentes');
         return;
     }
 
-    // Realizar la comparación y mostrar el gráfico
     actualizarGrafico(banco1, banco2);
 } 

@@ -1,0 +1,3155 @@
+https://youtu.be/v7JLQciwkrU
+from flask import Flask, render_template, jsonify, request
+from algorithms import (
+    sort_transactions,
+    find_financing_routes,
+    group_debts,
+    minimize_branch_costs,
+    optimize_savings,
+    calculate_minimum_debt,
+    compare_bank_rates
+)
+import random
+from datetime import datetime, timedelta
+from werkzeug.middleware.proxy_fix import ProxyFix
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+import time
+import logging
+
+app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+
+_rates_cache = {
+    'data': None,
+    'timestamp': None
+}
+
+def get_cached_rates():
+    global _rates_cache
+
+    if (_rates_cache['data'] is None or 
+        _rates_cache['timestamp'] is None or 
+        datetime.now() - _rates_cache['timestamp'] > timedelta(hours=24)):
+        
+        print("Fetching fresh rates")
+        rates = fetch_sbs_rates()
+        if rates:
+            _rates_cache['data'] = rates
+            _rates_cache['timestamp'] = datetime.now()
+    else:
+        print("Using cached rates")
+    
+    return _rates_cache['data']
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/load_example/<type>')
+def load_example(type):
+    if type == 'rates':
+        result = generate_rates_example()
+    else:
+        examples = {
+            'transactions': generate_transaction_example(),
+            'financing': generate_financing_example(),
+            'debts': generate_debts_example(),
+            'branches': generate_branches_example(),
+            'savings': generate_savings_example(),
+            'min-debt': generate_min_debt_example(),
+        }
+        result = examples.get(type, "Ejemplo no disponible")
+    
+    print(f"Returning example for {type}:", result)
+    return jsonify({'example': result})
+
+algorithms = {
+    'sort_transactions': sort_transactions,
+    'financing_routes': find_financing_routes,
+    'group_debts': group_debts,
+    'minimize_costs': minimize_branch_costs,
+    'optimize_savings': optimize_savings,
+    'minimum_debt': calculate_minimum_debt,
+    'compare_rates': compare_bank_rates
+}
+
+@app.route('/calculate/<operation>', methods=['POST'])
+def calculate(operation):
+    try:
+        data = request.json['data']
+        if not data:
+            return jsonify({'error': 'No se proporcionaron datos'})
+        
+        if operation in algorithms:
+            result = algorithms[operation](data)
+            return jsonify(result)
+        
+        return jsonify({'error': 'Operación no válida'})
+    except Exception as e:
+        return jsonify({'error': f'Error al procesar la solicitud: {str(e)}'})
+
+def generate_transaction_example():
+    transactions = []
+    current_date = datetime.now()
+    
+    for _ in range(5):
+        amount = round(random.uniform(1000, 10000), 2)
+        date = (current_date - timedelta(days=random.randint(0, 30))).strftime('%Y-%m-%d')
+        transactions.append(f"{date}: ${amount}")
+    
+    return "\n".join(sorted(transactions))  
+
+def generate_financing_example():
+    options = []
+    for i in range(3):  
+        amount = random.randint(50000, 500000) 
+        rate = round(random.uniform(8, 15), 2)  
+        term = random.choice([12, 24, 36, 48, 60]) 
+        options.append(f"Opción {i+1}: ${amount}, {rate}% anual, {term} meses")
+    return "\n".join(options)
+
+def generate_debts_example():
+    clients = ['Juan Pérez', 'María García', 'Pedro López', 'Ana Martínez', 'Luis Rodríguez']
+    debts = []
+    used_pairs = set()
+    
+    for _ in range(4):  
+        while True:
+            debtor = random.choice(clients)
+            creditor = random.choice([c for c in clients if c != debtor])
+            if (debtor, creditor) not in used_pairs:
+                used_pairs.add((debtor, creditor))
+                amount = round(random.uniform(500, 5000), 2) 
+                debts.append(f"{debtor} debe ${amount} a {creditor}")
+                break
+    
+    return "\n".join(debts)
+
+def generate_branches_example():
+    cities = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao']
+    connections = []
+    used_pairs = set()
+    
+    for i in range(len(cities)-1):
+        city1 = cities[i]
+        city2 = cities[i+1]
+        cost = random.randint(5000, 20000)
+        connections.append(f"{city1} - {city2}: ${cost}")
+        used_pairs.add((city1, city2))
+    
+    for _ in range(2):
+        while True:
+            city1, city2 = random.sample(cities, 2)
+            if (city1, city2) not in used_pairs and (city2, city1) not in used_pairs:
+                cost = random.randint(5000, 20000)
+                connections.append(f"{city1} - {city2}: ${cost}")
+                used_pairs.add((city1, city2))
+                break
+    
+    return "\n".join(connections)
+
+def generate_savings_example():
+    goal = random.randint(100000, 500000)  
+    years = random.randint(5, 15)         
+    monthly_save = round(goal / (years * 12) * 1.1, 2)  
+    return f"Meta: ${goal}\nPlazo: {years} años\nAhorro mensual sugerido: ${monthly_save}"
+
+def generate_min_debt_example():
+    banks = ['Banco Santander', 'BBVA', 'CaixaBank', 'Banco Sabadell']
+    debts = []
+    
+    for bank in banks:
+        amount = random.randint(10000, 100000)  
+        rate = round(random.uniform(5, 15), 2)  
+        debts.append(f"{bank}: ${amount} al {rate}% anual")
+    
+    return "\n".join(debts)
+
+def fetch_sbs_rates():
+    driver = None
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--start-maximized')
+        
+        print("Initializing Chrome...")
+        driver = webdriver.Chrome(options=chrome_options)
+        
+        print("Navigating to URL...")
+        url = "https://www.sbs.gob.pe/app/pp/EstadisticasSAEEPortal/Paginas/TIActivaTipoCreditoEmpresa.aspx?tip=B"
+        driver.get(url)
+        
+        time.sleep(10)
+        
+        print("Looking for table...")
+        table = driver.find_element(By.ID, "ctl00_cphContent_rpgActualMn_ctl00_DataZone_DT")
+        
+        print("Processing table data...")
+        rows = table.find_elements(By.TAG_NAME, "tr")
+        print(f"Found {len(rows)} rows")
+        
+        table_data = []
+        for row in rows:
+            cells = row.find_elements(By.TAG_NAME, "td")
+            row_data = [cell.text.strip() for cell in cells]
+            if row_data:
+                table_data.append(row_data)
+        
+        selected_rows = []
+        if table_data:
+            selected_rows.append(table_data[-1])
+            selected_rows.append(table_data[-8])
+        
+        print(f"Selected rows:")
+        for row in selected_rows:
+            print(row)
+            
+        driver.quit()
+        return selected_rows
+
+    except Exception as e:
+        logging.error(f"Error fetching SBS rates: {str(e)}")
+        print(f"Detailed error: {str(e)}")
+        if driver:
+            try:
+                driver.save_screenshot("error_screenshot.png")
+                print("Screenshot saved as error_screenshot.png")
+            except:
+                pass
+            driver.quit()
+        return None
+
+def generate_rates_example():
+    try:
+        selected_rows = get_cached_rates()
+        
+        if not selected_rows or len(selected_rows) < 2:
+            raise ValueError("Could not fetch rates data")
+ 
+        hipotecario_row = selected_rows[0]
+        personal_row = selected_rows[1]
+        
+        # bancos
+        banks = ['BBVA', 'Bancom', 'Crédito', 'Pichincha', 'BIF', 'Scotiabank', 
+                'Citibank', 'Interbank', 'Mibanco', 'GNB', 'Falabella', 'Santander']
+        
+        valid_banks = []
+        for i, bank in enumerate(banks, start=1):
+            hipoteca = hipotecario_row[i] if hipotecario_row[i] != '-' else 'N/A'
+            personal = personal_row[i] if personal_row[i] != '-' else 'N/A'
+            
+            if hipoteca != 'N/A' and personal != 'N/A':
+                valid_banks.append((bank, i))
+        
+        if not valid_banks:
+            return "No hay tasas disponibles en este momento"
+        
+        # seleccionar cuatro bancos aleatorios
+        selected_banks = random.sample(valid_banks, min(4, len(valid_banks)))
+        
+        rates = []
+        for bank, i in selected_banks:
+            hipoteca = hipotecario_row[i] if hipotecario_row[i] != '-' else 'N/A'
+            personal = personal_row[i] if personal_row[i] != '-' else 'N/A'
+            
+            rates.append(
+                f"{bank}:\n"
+                f"Hipoteca: {hipoteca}%\n"
+                f"Préstamo personal: {personal}%"
+            )
+        
+        return "\n\n".join(rates)
+    
+    except Exception as e:
+        logging.error(f"Error generating rates example: {str(e)}")
+        return "Error al obtener tasas en tiempo real. Por favor, intente más tarde."
+
+if __name__ == '__main__':
+    try:
+        from waitress import serve
+        print("Iniciando servidor en http://0.0.0.0:5000")
+        serve(app, host='0.0.0.0', port=5000)
+    except ImportError:
+        print("Ejecutando en modo desarrollo...")
+        app.run(host='0.0.0.0', port=5000, debug=True) 
+def sort_transactions(data):
+    # algoritmo para ordenar por fecha y monto
+    try:
+        transactions = [line.strip().split(': $') for line in data.split('\n')]
+        transactions = [(date, float(amount)) for date, amount in transactions]
+        
+        sorted_by_date = merge_sort(transactions, key=lambda x: x[0])
+        sorted_by_amount = merge_sort(transactions, key=lambda x: x[1])
+        
+        return {
+            'por_fecha': [f"{date}: ${amount}" for date, amount in sorted_by_date],
+            'por_monto': [f"{date}: ${amount}" for date, amount in sorted_by_amount]
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+def merge_sort(arr, key=lambda x: x):
+    if len(arr) <= 1:
+        return arr
+    
+    mid = len(arr) // 2
+    left = merge_sort(arr[:mid], key)
+    right = merge_sort(arr[mid:], key)
+    
+    return merge(left, right, key)
+
+def merge(left, right, key):
+    result = []
+    i = j = 0
+    
+    while i < len(left) and j < len(right):
+        if key(left[i]) <= key(right[j]):
+            result.append(left[i])
+            i += 1
+        else:
+            result.append(right[j])
+            j += 1
+    
+    result.extend(left[i:])
+    result.extend(right[j:])
+    return result
+
+def find_financing_routes(data):  # busqueda de rutas de financiamiento
+    try:
+        options = [line.strip().split(', ') for line in data.split('\n')]
+        processed_options = []
+        
+        for option in options:
+            amount = float(option[0].split('$')[1])
+            rate = float(option[1].split('%')[0])
+            term = int(option[2].split()[0])
+            
+            monthly_payment = calculate_monthly_payment(amount, rate/100/12, term)
+            total_cost = monthly_payment * term
+            
+            processed_options.append({
+                'monto': amount,
+                'tasa': rate,
+                'plazo': term,
+                'pago_mensual': round(monthly_payment, 2),
+                'costo_total': round(total_cost, 2)
+            })
+        
+        return sorted(processed_options, key=lambda x: x['costo_total'])
+    except Exception as e:
+        return {'error': str(e)}
+
+def calculate_monthly_payment(principal, monthly_rate, term):
+    return principal * (monthly_rate * (1 + monthly_rate)**term) / ((1 + monthly_rate)**term - 1)
+
+def group_debts(data):
+    # aca se aplico union find
+    try:
+        lines = data.split('\n')
+        clients = {}
+        
+        def find(client):
+            if clients[client] != client:
+                clients[client] = find(clients[client])
+            return clients[client]
+        
+        def union(client1, client2):
+            root1 = find(client1)
+            root2 = find(client2)
+            if root1 != root2:
+                clients[root2] = root1
+        
+        for line in lines:
+            debtor, creditor = line.split(' debe ')[0], line.split(' a ')[1]
+            if debtor not in clients:
+                clients[debtor] = debtor
+            if creditor not in clients:
+                clients[creditor] = creditor
+            union(debtor, creditor)
+        
+        groups = {}
+        for client in clients:
+            root = find(client)
+            if root not in groups:
+                groups[root] = []
+            groups[root].append(client)
+        
+        return list(groups.values())
+    except Exception as e:
+        return {'error': str(e)}
+
+def minimize_branch_costs(data): # kruskal
+    try:
+        lines = data.split('\n')
+        edges = []
+        vertices = set()
+        
+        for line in lines:
+            cities, cost = line.split(': $')
+            city1, city2 = cities.split(' - ')
+            cost = int(cost)
+            edges.append((cost, city1, city2))
+            vertices.add(city1)
+            vertices.add(city2)
+        parent = {city: city for city in vertices}
+        
+        def find(city):
+            if parent[city] != city:
+                parent[city] = find(parent[city])
+            return parent[city]
+        
+        def union(city1, city2):
+            parent[find(city2)] = find(city1)
+        
+        minimum_spanning_tree = []
+        total_cost = 0
+        
+        for cost, city1, city2 in sorted(edges):
+            if find(city1) != find(city2):
+                union(city1, city2)
+                minimum_spanning_tree.append((city1, city2, cost))
+                total_cost += cost
+        
+        return {
+            'conexiones': [f"{city1} - {city2}: ${cost}" for city1, city2, cost in minimum_spanning_tree],
+            'costo_total': total_cost
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+def optimize_savings(data): # progrmacion dinamica
+    try:
+        lines = data.split('\n')
+        goal = float(lines[0].split('$')[1])
+        years = int(lines[1].split(':')[1].split()[0])
+        monthly_save = float(lines[2].split('$')[1])
+        
+        scenarios = []
+        interest_rates = [0.03, 0.05, 0.07]  # tasas de interes
+        
+        for rate in interest_rates:
+            monthly_rate = rate / 12
+            months = years * 12
+            
+            future_value = 0
+            for month in range(months):
+                future_value += monthly_save
+                future_value *= (1 + monthly_rate)
+            
+            scenarios.append({
+                'tasa_anual': f"{rate*100}%",
+                'ahorro_mensual': monthly_save,
+                'valor_futuro': round(future_value, 2)
+            })
+        
+        return scenarios
+    except Exception as e:
+        return {'error': str(e)}
+
+def calculate_minimum_debt(data):#bellman ford
+    try:
+        lines = data.split('\n')
+        debts = []
+        
+        for line in lines:
+            bank, info = line.split(': $')
+            amount, rate = info.split(' al ')
+            amount = float(amount)
+            rate = float(rate.split('%')[0])
+            
+            monthly_rate = rate/100/12
+            term = 24
+            monthly_payment = calculate_monthly_payment(amount, monthly_rate, term)
+            total_cost = monthly_payment * term
+            
+            debts.append({
+                'banco': bank,
+                'monto': amount,
+                'tasa': rate,
+                'pago_mensual': round(monthly_payment, 2),
+                'costo_total': round(total_cost, 2)
+            })
+        
+        return sorted(debts, key=lambda x: x['costo_total'])
+    except Exception as e:
+        return {'error': str(e)}
+
+def compare_bank_rates(data): # floyd warshall
+    try:
+        lines = data.split('\n')
+        banks = {}
+        current_bank = None
+        
+        for line in lines:
+            if ':' in line and 'Hipoteca' not in line:
+                current_bank = line.split(':')[0]
+                banks[current_bank] = {}
+            elif current_bank and '%' in line:
+                product, rate = line.split(': ')
+                banks[current_bank][product] = float(rate.split('%')[0])
+        
+        comparison = []
+        for bank, rates in banks.items():
+            for product, rate in rates.items():
+                comparison.append({
+                    'banco': bank,
+                    'producto': product,
+                    'tasa': rate
+                })
+        
+        return {
+            'hipotecas': sorted([x for x in comparison if x['producto'] == 'Hipoteca'], 
+                              key=lambda x: x['tasa']),
+            'prestamos_personales': sorted([x for x in comparison if x['producto'] == 'Préstamo personal'], 
+                                         key=lambda x: x['tasa'])
+        }
+    except Exception as e:
+        return {'error': str(e)} 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Financiera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- librerias -->
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='visualizations.js') }}"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Calculadora Financiera</h1>
+        
+        <!-- ordenar Transacciones -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Ordenar Transacciones</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('transactions-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="transactions-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Ordena cronológicamente o por monto las transacciones financieras para facilitar el análisis y seguimiento.</p>
+                <h4>¿Por qué Merge Sort?</h4>
+                <p>Se utiliza el algoritmo Merge Sort porque:</p>
+                <ul>
+                    <li>Es eficiente para grandes conjuntos de datos (complejidad O(n log n))</li>
+                    <li>Mantiene el orden relativo de elementos iguales (estabilidad)</li>
+                    <li>Es predecible en su rendimiento independiente del orden inicial</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="transactions-form">
+                    <div class="transaction-entry">
+                        <input type="date" class="date-input" required>
+                        <input type="number" step="0.01" min="0" placeholder="Monto" class="amount-input" required>
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('transactions')">Cargar Ejemplo</button>
+                    <button onclick="calculate('sort_transactions')">Calcular</button>
+                </div>
+                <textarea id="transactions" style="display: none;"></textarea>
+            </div>
+            <div id="transactions-result" class="result"></div>
+        </div>
+
+        <!-- Rutas de Financiamiento -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Rutas de Financiamiento</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('financing-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="financing-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Analiza diferentes opciones de financiamiento para encontrar la ruta más económica considerando tasas, plazos y montos.</p>
+                <h4>¿Por qué Búsqueda de Rutas?</h4>
+                <ul>
+                    <li>Permite comparar múltiples opciones simultáneamente</li>
+                    <li>Considera el costo total incluyendo intereses y plazos</li>
+                    <li>Identifica la opción más económica a largo plazo</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="financing-form">
+                    <div class="financing-entry">
+                        <input type="number" step="1000" min="0" placeholder="Monto del préstamo" class="amount-input" required>
+                        <input type="number" step="0.01" min="0" max="100" placeholder="Tasa anual %" class="rate-input" required>
+                        <input type="number" step="1" min="1" max="360" placeholder="Plazo (meses)" class="term-input" required>
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('financing')">Cargar Ejemplo</button>
+                    <button onclick="calculate('financing_routes')">Calcular</button>
+                </div>
+                <textarea id="financing" style="display: none;"></textarea>
+            </div>
+            <div id="financing-result" class="result"></div>
+        </div>
+
+        <!-- Agrupación de Deudas -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Agrupación de Deudas</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('debts-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="debts-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Identifica grupos de personas conectadas por deudas para facilitar la consolidación y negociación de pagos.</p>
+                <h4>¿Por qué Union-Find?</h4>
+                <ul>
+                    <li>Eficiente para encontrar conexiones en redes de deudas</li>
+                    <li>Permite identificar ciclos de deuda</li>
+                    <li>Facilita la consolidación de deudas entre grupos</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="debts-form">
+                    <div class="debt-entry">
+                        <input type="text" placeholder="Deudor" class="debtor-input">
+                        <input type="number" step="0.01" min="0" placeholder="Monto" class="amount-input">
+                        <input type="text" placeholder="Acreedor" class="creditor-input">
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('debts')">Cargar Ejemplo</button>
+                    <button onclick="calculate('group_debts')">Calcular</button>
+                </div>
+                <textarea id="debts" style="display: none;"></textarea>
+            </div>
+            <div id="debts-result" class="result"></div>
+        </div>
+
+        <!-- Minimización de Costos -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Minimización de Costos de Sucursales</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('branches-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="branches-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Encuentra la forma más económica de conectar todas las sucursales minimizando los costos de infraestructura.</p>
+                <h4>¿Por qué Kruskal (MST)?</h4>
+                <ul>
+                    <li>Garantiza la conexión más económica entre todas las sucursales</li>
+                    <li>Evita ciclos innecesarios que aumentarían costos</li>
+                    <li>Optimiza la inversión en infraestructura</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="branches-form">
+                    <div class="branch-entry">
+                        <input type="text" placeholder="Ciudad 1" class="city1-input">
+                        <input type="text" placeholder="Ciudad 2" class="city2-input">
+                        <input type="number" step="1" min="0" placeholder="Costo de conexión" class="cost-input">
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('branches')">Cargar Ejemplo</button>
+                    <button onclick="calculate('minimize_costs')">Calcular</button>
+                </div>
+                <textarea id="branches" style="display: none;"></textarea>
+            </div>
+            <div id="branches-result" class="result"></div>
+        </div>
+
+        <!-- Optimización de Ahorros -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Optimización de Ahorros</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('savings-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="savings-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Calcula diferentes escenarios de ahorro para alcanzar metas financieras considerando tasas de interés variables.</p>
+                <h4>¿Por qué Programación Dinámica?</h4>
+                <ul>
+                    <li>Optimiza el plan de ahorro considerando múltiples variables</li>
+                    <li>Permite ajustar estrategias según cambios en tasas</li>
+                    <li>Calcula el mejor camino para alcanzar la meta</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="savings-form">
+                    <input type="number" step="1000" min="0" placeholder="Meta de ahorro" id="savings-goal">
+                    <input type="number" step="1" min="1" max="30" placeholder="Plazo en años" id="savings-years">
+                    <input type="number" step="0.01" min="0" placeholder="Ahorro mensual sugerido" id="monthly-savings">
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('savings')">Cargar Ejemplo</button>
+                    <button onclick="calculate('optimize_savings')">Calcular</button>
+                </div>
+                <textarea id="savings" style="display: none;"></textarea>
+            </div>
+            <div id="savings-result" class="result"></div>
+        </div>
+
+        <!-- Cálculo de Deuda Mínima -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Cálculo de Deuda Mínima</h2>
+                <button class="tutorial-btn" onclick="toggleTutorial('min-debt-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="min-debt-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Encuentra la estrategia de pago más económica considerando diferentes deudas e intereses.</p>
+                <h4>¿Por qué Bellman-Ford?</h4>
+                <ul>
+                    <li>Maneja tasas de interés variables y plazos diferentes</li>
+                    <li>Considera el impacto de los intereses compuestos</li>
+                    <li>Identifica la ruta de pago más económica</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="min-debt-form">
+                    <div class="debt-min-entry">
+                        <input type="text" placeholder="Nombre del banco" class="bank-input">
+                        <input type="number" step="0.01" min="0" placeholder="Monto" class="amount-input">
+                        <input type="number" step="0.01" min="0" max="100" placeholder="Tasa anual %" class="rate-input">
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('min-debt')">Cargar Ejemplo</button>
+                    <button onclick="calculate('minimum_debt')">Calcular</button>
+                </div>
+                <textarea id="min-debt" style="display: none;"></textarea>
+            </div>
+            <div id="min-debt-result" class="result"></div>
+        </div>
+
+        <!-- Comparación de Tasas -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Comparación de Tasas entre Bancos</h2>
+                <p class="data-source">
+                    Dataset extraído de: <a href="https://www.sbs.gob.pe/app/pp/EstadisticasSAEEPortal/Paginas/TIActivaTipoCreditoEmpresa.aspx?tip=B" target="_blank">SBS - Tasas Activas por Tipo de Crédito y Empresa</a>
+                </p>
+                <button class="tutorial-btn" onclick="toggleTutorial('rates-tutorial')">Ver Tutorial</button>
+            </div>
+            <div class="tutorial" id="rates-tutorial" style="display: none;">
+                <h4>¿Para qué sirve?</h4>
+                <p>Compara las tasas de diferentes productos bancarios para encontrar las mejores opciones disponibles.</p>
+                <h4>¿Por qué Floyd-Warshall?</h4>
+                <ul>
+                    <li>Permite comparar todas las combinaciones de tasas</li>
+                    <li>Identifica oportunidades de arbitraje entre bancos</li>
+                    <li>Encuentra las mejores tasas para cada tipo de préstamo</li>
+                </ul>
+            </div>
+            <div class="input-group">
+                <div class="form-container" id="rates-form">
+                    <div class="bank-rate-entry">
+                        <input type="text" placeholder="Nombre del banco" class="bank-input">
+                        <div class="rates-inputs">
+                            <label>Hipoteca:</label>
+                            <input type="number" step="0.01" min="0" max="100" placeholder="Tasa %" class="mortgage-rate">
+                            <label>Préstamo personal:</label>
+                            <input type="number" step="0.01" min="0" max="100" placeholder="Tasa %" class="personal-rate">
+                        </div>
+                        <button type="button" class="add-entry">+</button>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button onclick="loadExample('rates')">Cargar Datos de Dataset</button>
+                    <button onclick="calculate('compare_rates')">Calcular</button>
+                </div>
+                <textarea id="rates" style="display: none;"></textarea>
+            </div>
+            <div id="rates-result" class="result"></div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html> 
+
+
+const algorithmVisualizations = {
+    'sort_transactions': (result, containerId) => {
+        const container = document.getElementById(containerId);
+        
+        const processContainer = document.createElement('div');
+        processContainer.style.marginBottom = '20px';
+        const resultCanvas = document.createElement('canvas');
+        
+        container.appendChild(processContainer);
+        container.appendChild(resultCanvas);
+        
+        const originalData = result.por_fecha.map(t => parseFloat(t.split('$')[1]));
+        
+        function mergeSortWithSteps(arr) {
+            const steps = [{
+                type: 'initial',
+                array: [...arr],
+                message: 'Array inicial'
+            }];
+            
+            function merge(left, right, start) {
+                const result = [];
+                let i = 0, j = 0;
+                
+                while (i < left.length && j < right.length) {
+                    if (left[i] <= right[j]) {
+                        result.push(left[i]);
+                        i++;
+                    } else {
+                        result.push(right[j]);
+                        j++;
+                    }
+                }
+                
+                return result.concat(left.slice(i)).concat(right.slice(j));
+            }
+            
+            function mergeSort(array, start = 0) {
+                if (array.length <= 1) return array;
+                
+                const mid = Math.floor(array.length / 2);
+                const left = array.slice(0, mid);
+                const right = array.slice(mid);
+                
+                steps.push({
+                    type: 'split',
+                    left: [...left],
+                    right: [...right],
+                    message: `División: [${array.join(', ')}] → [${left.join(', ')}] | [${right.join(', ')}]`
+                });
+                
+                const sortedLeft = mergeSort(left, start);
+                const sortedRight = mergeSort(right, start + mid);
+                const merged = merge(sortedLeft, sortedRight, start);
+                
+                steps.push({
+                    type: 'merge',
+                    result: [...merged],
+                    message: `Fusión: [${sortedLeft.join(', ')}] + [${sortedRight.join(', ')}] → [${merged.join(', ')}]`
+                });
+                
+                return merged;
+            }
+            
+            mergeSort([...arr]);
+            return steps;
+        }
+        
+        const sortingSteps = mergeSortWithSteps(originalData);
+        
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso de Merge Sort</h4>
+                ${sortingSteps.map((step, index) => `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Paso ${index + 1}</div>
+                        <div class="step-description">${step.message}</div>
+                        <div class="step-arrays">
+                            ${step.type === 'initial' ? 
+                                `<div class="array">[${step.array.map(n => `<span>${n.toFixed(2)}</span>`).join(', ')}]</div>` :
+                                step.type === 'split' ?
+                                `<div class="split">
+                                    <div class="array left">[${step.left.map(n => `<span>${n.toFixed(2)}</span>`).join(', ')}]</div>
+                                    <div class="array right">[${step.right.map(n => `<span>${n.toFixed(2)}</span>`).join(', ')}]</div>
+                                </div>` :
+                                `<div class="array merged">[${step.result.map(n => `<span>${n.toFixed(2)}</span>`).join(', ')}]</div>`
+                            }
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        new Chart(resultCanvas, {
+            type: 'bar',
+            data: {
+                labels: result.por_fecha.map(t => t.split(': ')[0]),
+                datasets: [{
+                    label: 'Transacciones Ordenadas',
+                    data: result.por_monto.map(t => parseFloat(t.split('$')[1])),
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                    borderColor: 'rgb(75, 192, 192)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Resultado Final Ordenado'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Monto ($)'
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    'financing_routes': (result, containerId) => {
+        const container = document.getElementById(containerId);
+        
+        const graphCtx = document.createElement('canvas');
+        const explorationCtx = document.createElement('canvas');
+        const resultCtx = document.createElement('canvas');
+        
+        container.appendChild(graphCtx);
+        container.appendChild(explorationCtx);
+        container.appendChild(resultCtx);
+        
+        const nodes = result.map((opt, index) => ({
+            id: index,
+            label: `Opción ${index + 1}`,
+            x: opt.plazo,
+            y: opt.tasa,
+            size: opt.monto / 10000,
+            color: index === 0 ? '#2ecc71' : '#e74c3c'
+        }));
+
+        const edges = [];
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                edges.push({
+                    from: nodes[i].id,
+                    to: nodes[j].id,
+                    value: Math.abs(result[i].costo_total - result[j].costo_total),
+                    title: `Diferencia: $${Math.abs(result[i].costo_total - result[j].costo_total).toLocaleString()}`
+                });
+            }
+        }
+
+        const network = new vis.Network(graphCtx, {
+            nodes: new vis.DataSet(nodes),
+            edges: new vis.DataSet(edges)
+        }, {
+            physics: {
+                stabilization: true,
+                barnesHut: {
+                    gravitationalConstant: -2000,
+                    springConstant: 0.04
+                }
+            }
+        });
+
+        new Chart(explorationCtx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Espacio de Búsqueda',
+                    data: result.map((opt, index) => ({
+                        x: opt.plazo,
+                        y: opt.tasa,
+                        r: opt.monto / 10000
+                    })),
+                    backgroundColor: (context) => {
+                        const index = context.dataIndex;
+                        return index === 0 ? 'rgba(46, 204, 113, 0.6)' : 'rgba(231, 76, 60, 0.6)';
+                    }
+                }]
+            },
+            options: {
+                responsive: true,
+                title: {
+                    display: true,
+                    text: 'Exploración de Opciones'
+                },
+                scales: {
+                    x: {title: {display: true, text: 'Plazo (meses)'}},
+                    y: {title: {display: true, text: 'Tasa (%)'}}
+                }
+            }
+        });
+
+        new Chart(resultCtx, {
+            type: 'line',
+            data: {
+                labels: result.map((_, i) => `Opción ${i + 1}`),
+                datasets: [{
+                    label: 'Costo Total',
+                    data: result.map(opt => opt.costo_total),
+                    borderColor: 'rgb(75, 192, 192)',
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                title: {
+                    display: true,
+                    text: 'Comparación de Costos'
+                }
+            }
+        });
+
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo de Búsqueda de Rutas:</h4>
+                ${result.map((option, index) => `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Paso ${index + 1}: Evaluación de Opción</div>
+                        <div class="step-description">
+                            Calculando costo total para préstamo de $${option.monto.toLocaleString()}
+                        </div>
+                        <div class="step-arrays">
+                            <div class="array">
+                                <span>Principal: $${option.monto.toLocaleString()}</span>
+                                <span>Tasa: ${option.tasa}%</span>
+                                <span>Plazo: ${option.plazo} meses</span>
+                                <span>→</span>
+                                <span>Pago: $${option.pago_mensual.toLocaleString()}</span>
+                                <span>Total: $${option.costo_total.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+                <div class="merge-sort-step">
+                    <div class="step-number">Resultado Final</div>
+                    <div class="step-description">
+                        Ruta más económica encontrada: Opción con costo total de $${result[0].costo_total.toLocaleString()}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
+        container.appendChild(graphCtx);
+        container.appendChild(explorationCtx);
+        container.appendChild(resultCtx);
+    },
+
+    'group_debts': (result, containerId) => {
+        const container = document.getElementById(containerId);
+        const networkContainer = document.createElement('div');
+        networkContainer.style.height = '400px';
+        
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo Union-Find:</h4>
+                ${result.map((group, index) => `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Grupo ${index + 1}: Formación de Conjunto</div>
+                        <div class="step-description">
+                            Uniendo miembros relacionados por deudas
+                        </div>
+                        <div class="step-arrays">
+                            <div class="array">
+                                <span>Miembros: ${group.members.join(', ')}</span>
+                            </div>
+                        </div>
+                        <div class="step-description">
+                            Optimización de transacciones dentro del grupo:
+                        </div>
+                        <div class="step-arrays">
+                            ${group.transactions.map(t => `
+                                <div class="array">
+                                    <span>${t.from}</span>
+                                    <span>→</span>
+                                    <span>$${t.amount.toLocaleString()}</span>
+                                    <span>→</span>
+                                    <span>${t.to}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
+        container.appendChild(networkContainer);
+
+        const nodes = new vis.DataSet();
+        const edges = new vis.DataSet();
+        
+        result.forEach((group, groupIndex) => {
+            group.members.forEach(member => {
+                nodes.add({
+                    id: member,
+                    label: member,
+                    group: groupIndex,
+                    color: {
+                        background: `hsl(${groupIndex * 360/result.length}, 70%, 80%)`,
+                        border: `hsl(${groupIndex * 360/result.length}, 70%, 60%)`
+                    }
+                });
+            });
+            
+            group.transactions.forEach(t => {
+                edges.add({
+                    from: t.from,
+                    to: t.to,
+                    label: `$${t.amount}`,
+                    arrows: 'to',
+                    color: {
+                        color: `hsl(${groupIndex * 360/result.length}, 70%, 60%)`,
+                        highlight: '#2ecc71'
+                    }
+                });
+            });
+        });
+
+        new vis.Network(networkContainer, {
+            nodes: nodes,
+            edges: edges
+        }, {
+            physics: {
+                solver: 'forceAtlas2Based',
+                forceAtlas2Based: {
+                    gravitationalConstant: -50,
+                    springLength: 200
+                }
+            },
+            groups: {
+                useDefaultGroups: false
+            }
+        });
+    },
+
+    'minimize_costs': (result, containerId) => {
+        const container = document.getElementById(containerId);
+        const networkContainer = document.createElement('div');
+        networkContainer.style.height = '400px';
+        
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo de Kruskal (MST):</h4>
+                ${result.conexiones.map((conn, index) => {
+                    const [cities, cost] = conn.split(': $');
+                    const [city1, city2] = cities.split(' - ');
+                    return `
+                        <div class="merge-sort-step">
+                            <div class="step-number">Paso ${index + 1}: Selección de Arista</div>
+                            <div class="step-description">
+                                Evaluando conexión de menor costo que no forma ciclo
+                            </div>
+                            <div class="step-arrays">
+                                <div class="array">
+                                    <span>${city1}</span>
+                                    <span>↔</span>
+                                    <span>$${cost}</span>
+                                    <span>↔</span>
+                                    <span>${city2}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+                <div class="merge-sort-step">
+                    <div class="step-number">Árbol de Expansión Mínimo Completado</div>
+                    <div class="step-description">
+                        Costo total optimizado: $${result.costo_total.toLocaleString()}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
+        container.appendChild(networkContainer);
+
+        //  el proceso de Kruskal MST
+        const nodes = new vis.DataSet();
+        const edges = new vis.DataSet();
+        const cities = new Set();
+
+        // Extraer todas las ciudades
+        result.conexiones.forEach(conn => {
+            const [city1, city2] = conn.split(': $')[0].split(' - ');
+            cities.add(city1);
+            cities.add(city2);
+        });
+
+        //  nodos
+        Array.from(cities).forEach(city => {
+            nodes.add({
+                id: city,
+                label: city,
+                color: {
+                    background: '#81ecec',
+                    border: '#00cec9'
+                }
+            });
+        });
+
+        //  aristas del MST
+        result.conexiones.forEach((conn, index) => {
+            const [cities, cost] = conn.split(': $');
+            const [city1, city2] = cities.split(' - ');
+            edges.add({
+                from: city1,
+                to: city2,
+                label: `$${cost}`,
+                color: {
+                    color: '#00b894',
+                    highlight: '#00cec9'
+                },
+                width: 3,
+                physics: false
+            });
+        });
+
+        new vis.Network(networkContainer, {
+            nodes: nodes,
+            edges: edges
+        }, {
+            physics: {
+                enabled: true,
+                solver: 'forceAtlas2Based'
+            }
+        });
+    },
+
+    'optimize_savings': (result, containerId) => {
+        const container = document.getElementById(containerId);
+        const dpCanvas = document.createElement('canvas');
+        
+        //  proceso 
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso de Programación Dinámica para Optimización de Ahorros:</h4>
+                ${result.map((scenario, index) => `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Escenario ${index + 1} - Perfil ${scenario.perfil}</div>
+                        <div class="step-description">
+                            Evaluando estrategia de inversión con tasa ${scenario.tasa_anual}
+                        </div>
+                        <div class="step-arrays">
+                            <div class="array">
+                                <span>Ahorro Mensual: $${scenario.ahorro_mensual.toLocaleString()}</span>
+                                <span>→</span>
+                                <span>Valor Futuro: $${scenario.valor_futuro.toLocaleString()}</span>
+                            </div>
+                            <div class="array">
+                                <span>Retorno: $${scenario.retorno_inversion.toLocaleString()}</span>
+                                <span>ROI: ${scenario.roi_porcentaje}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
+        container.appendChild(dpCanvas);
+
+        //  la tabla 
+        const labels = result.map(r => `${r.perfil} (${r.tasa_anual})`);
+        const datasets = [
+            {
+                label: 'Valor Futuro',
+                data: result.map(r => r.valor_futuro),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                fill: true
+            },
+            {
+                label: 'Retorno de Inversión',
+                data: result.map(r => r.retorno_inversion),
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                fill: true
+            }
+        ];
+
+        new Chart(dpCanvas, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Valor ($)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Optimización de Ahorros - Análisis por Perfil de Riesgo'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const scenario = result[context.dataIndex];
+                                return [
+                                    `${context.dataset.label}: $${context.raw.toLocaleString()}`,
+                                    `ROI: ${scenario.roi_porcentaje}%`,
+                                    `Ahorro Mensual: $${scenario.ahorro_mensual.toLocaleString()}`
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    'minimum_debt': (result, containerId) => {
+        const container = document.getElementById(containerId);
+        const bellmanCanvas = document.createElement('canvas');
+        
+        //  de Bellman-Ford
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo Bellman-Ford:</h4>
+                ${result.map((debt, index) => `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Iteración ${index + 1}</div>
+                        <div class="step-description">
+                            Evaluando ruta de pago para ${debt.banco}
+                        </div>
+                        <div class="step-arrays">
+                            <div class="array">
+                                <span>Monto: $${debt.monto.toLocaleString()}</span>
+                                <span>Tasa: ${debt.tasa}%</span>
+                                <span>→</span>
+                                <span>Mensual: $${debt.pago_mensual.toLocaleString()}</span>
+                                <span>Total: $${debt.costo_total.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
+        container.appendChild(bellmanCanvas);
+
+        // Bellman-Ford
+        const steps = result.map((debt, index) => ({
+            x: index,
+            y: debt.costo_total,
+            label: debt.banco
+        }));
+
+        new Chart(bellmanCanvas, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Ruta de Minimización de Deuda',
+                    data: steps,
+                    backgroundColor: steps.map((_, i) => 
+                        i === 0 ? 'rgba(46, 204, 113, 0.6)' : 'rgba(231, 76, 60, 0.6)'
+                    ),
+                    borderColor: steps.map((_, i) => 
+                        i === 0 ? 'rgb(46, 204, 113)' : 'rgb(231, 76, 60)'
+                    ),
+                    pointRadius: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Costo Total ($)'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const point = context.raw;
+                                return [
+                                    `Banco: ${point.label}`,
+                                    `Costo Total: $${point.y.toLocaleString()}`
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    'compare_rates': (result, containerId) => {
+        const container = document.getElementById(containerId);
+        const floydCanvas = document.createElement('canvas');
+        
+        // Floyd-Warshall
+        const processContainer = document.createElement('div');
+        processContainer.innerHTML = `
+            <div class="merge-sort-visualization">
+                <h4>Proceso del Algoritmo Floyd-Warshall:</h4>
+                <div class="merge-sort-step">
+                    <div class="step-number">Análisis de Tasas Hipotecarias</div>
+                    <div class="step-arrays">
+                        ${result.hipotecas.map(h => `
+                            <div class="array">
+                                <span>${h.banco}</span>
+                                <span>→</span>
+                                <span>${h.tasa}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="merge-sort-step">
+                    <div class="step-number">Análisis de Préstamos Personales</div>
+                    <div class="step-arrays">
+                        ${result.prestamos_personales.map(p => `
+                            <div class="array">
+                                <span>${p.banco}</span>
+                                <span>→</span>
+                                <span>${p.tasa}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ${result.arbitraje.length > 0 ? `
+                    <div class="merge-sort-step">
+                        <div class="step-number">Oportunidades de Arbitraje Detectadas</div>
+                        <div class="step-arrays">
+                            ${result.arbitraje.map(a => `
+                                <div class="array">
+                                    <span>${a.ruta}</span>
+                                    <span>→</span>
+                                    <span>Diferencia: ${a.diferencia.toFixed(2)}%</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        
+        container.appendChild(processContainer);
+        container.appendChild(floydCanvas);
+
+        // Floyd-Warshall
+        const banks = result.hipotecas.map(h => h.banco);
+        const datasets = [
+            {
+                label: 'Tasas Hipotecarias',
+                data: result.hipotecas.map(h => h.tasa),
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                borderColor: 'rgb(255, 99, 132)',
+                type: 'line',
+                fill: true
+            },
+            {
+                label: 'Tasas Préstamos Personales',
+                data: result.prestamos_personales.map(p => p.tasa),
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgb(54, 162, 235)',
+                type: 'line',
+                fill: true
+            }
+        ];
+
+        if (result.arbitraje && result.arbitraje.length > 0) {
+            datasets.push({
+                label: 'Oportunidades de Arbitraje',
+                data: result.arbitraje.map(a => a.diferencia),
+                backgroundColor: 'rgba(255, 206, 86, 0.5)',
+                borderColor: 'rgb(255, 206, 86)',
+                type: 'bar'
+            });
+        }
+
+        new Chart(floydCanvas, {
+            type: 'line',
+            data: {
+                labels: banks,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Tasa (%)'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Análisis de Tasas y Arbitraje'
+                    }
+                }
+            }
+        });
+    }
+}; 
+
+//  merge sort
+function mergeArrays(left, right) {
+    const result = [];
+    let i = 0, j = 0;
+    
+    while (i < left.length && j < right.length) {
+        if (left[i] <= right[j]) {
+            result.push(left[i]);
+            i++;
+        } else {
+            result.push(right[j]);
+            j++;
+        }
+    }
+    
+    return result.concat(left.slice(i)).concat(right.slice(j));
+}
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+}
+
+h2 {
+    color: #34495e;
+    margin-top: 0;
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+textarea {
+    width: 100%;
+    height: 100px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+}
+
+button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+.result {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    min-height: 50px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    background-color: white;
+}
+
+th, td {
+    padding: 8px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+th {
+    background-color: #f4f4f4;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background-color: #f8f8f8;
+}
+
+tr:hover {
+    background-color: #f0f0f0;
+}
+
+.debt-group {
+    margin: 10px 0;
+    padding: 10px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.total-cost {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #e8f4fd;
+    border-radius: 4px;
+    text-align: right;
+}
+
+.error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+h3 {
+    color: #2c3e50;
+    margin: 20px 0 10px 0;
+}
+
+.form-container {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.transaction-entry,
+.financing-entry,
+.debt-entry,
+.branch-entry,
+.debt-min-entry,
+.bank-rate-entry {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.form-container input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.date-input {
+    width: 150px;
+}
+
+.amount-input {
+    width: 120px;
+}
+
+.rate-input {
+    width: 100px;
+}
+
+.term-input {
+    width: 100px;
+}
+
+.debtor-input,
+.creditor-input,
+.city1-input,
+.city2-input,
+.bank-input {
+    width: 150px;
+}
+
+.cost-input {
+    width: 120px;
+}
+
+.add-entry {
+    background-color: #2ecc71;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    line-height: 30px;
+    text-align: center;
+}
+
+.add-entry:hover {
+    background-color: #27ae60;
+}
+
+.button-group {
+    margin-top: 10px;
+}
+
+.rates-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.rates-inputs label {
+    font-size: 14px;
+    color: #666;
+}
+
+#savings-form {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.remove-entry {
+    background-color: #e74c3c;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    line-height: 30px;
+    text-align: center;
+}
+
+.remove-entry:hover {
+    background-color: #c0392b;
+}
+
+.form-container input:invalid {
+    border-color: #e74c3c;
+    background-color: #fdf1f0;
+}
+
+.form-container input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 3px rgba(52, 152, 219, 0.5);
+}
+
+.form-container input.error {
+    border-color: #e74c3c;
+}
+
+.form-container input:required {
+    border-left: 3px solid #3498db;
+}
+
+.validation-message {
+    color: #e74c3c;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.tutorial-btn {
+    background-color: #f39c12;
+    font-size: 14px;
+    padding: 8px 15px;
+}
+
+.tutorial-btn:hover {
+    background-color: #d68910;
+}
+
+.tutorial {
+    background-color: #f9f9f9;
+    border-left: 4px solid #f39c12;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 0 4px 4px 0;
+}
+
+.tutorial h4 {
+    color: #2c3e50;
+    margin: 10px 0;
+}
+
+.tutorial p {
+    color: #34495e;
+    margin: 10px 0;
+    line-height: 1.5;
+}
+
+.tutorial ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.tutorial li {
+    color: #34495e;
+    margin: 5px 0;
+    line-height: 1.4;
+}
+
+.conclusion {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #e8f6f3;
+    border-left: 4px solid #2ecc71;
+    border-radius: 0 4px 4px 0;
+}
+
+.conclusion h4 {
+    color: #27ae60;
+    margin: 0 0 10px 0;
+}
+
+.conclusion p {
+    margin: 5px 0;
+    color: #2c3e50;
+    line-height: 1.5;
+}
+
+.algorithm-steps {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f0f7fb;
+    border-left: 4px solid #3498db;
+    border-radius: 0 4px 4px 0;
+}
+
+.algorithm-steps h4 {
+    color: #2980b9;
+    margin: 0 0 10px 0;
+}
+
+.algorithm-steps ol {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.algorithm-steps li {
+    color: #34495e;
+    margin: 5px 0;
+    line-height: 1.5;
+}
+
+.complexity, .formula, .optimization, .tree-info, .calculations, .path-info, .matrix-info {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #edf7ff;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.formula {
+    text-align: center;
+    font-style: italic;
+}
+
+.visualization-container {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-height: 400px;
+}
+
+.merge-sort-visualization {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.merge-sort-step {
+    margin: 15px 0;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    background-color: white;
+}
+
+.step-number {
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.step-description {
+    color: #34495e;
+    font-family: monospace;
+    margin-bottom: 10px;
+}
+
+.step-arrays {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.array {
+    padding: 5px 10px;
+    background-color: #e8f6f3;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.array span {
+    display: inline-block;
+    padding: 2px 5px;
+    margin: 0 2px;
+    background-color: #2ecc71;
+    color: white;
+    border-radius: 3px;
+}
+
+.split {
+    display: flex;
+    gap: 10px;
+}
+
+.array.left {
+    background-color: #ebf5fb;
+}
+
+.array.left span {
+    background-color: #3498db;
+}
+
+.array.right {
+    background-color: #fef5e7;
+}
+
+.array.right span {
+    background-color: #f39c12;
+}
+
+.array.merged {
+    background-color: #e8f6f3;
+}
+
+.array.merged span {
+    background-color: #2ecc71;
+}
+const algorithmSteps = {
+    'sort_transactions': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo Merge Sort:</h4>
+            <ol>
+                <li>División: Se divide la lista de ${result.por_fecha.length} transacciones en mitades.</li>
+                <li>Ordenamiento recursivo: Se ordenan las sublistas.</li>
+                <li>Combinación: Se fusionan las sublistas ordenadas.</li>
+                <li>Complejidad: O(n log n) para ${result.por_fecha.length} elementos.</li>
+            </ol>
+            <div class="complexity">
+                Número de operaciones ≈ ${Math.round(result.por_fecha.length * Math.log2(result.por_fecha.length))}
+            </div>
+        </div>`,
+
+    'financing_routes': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo de Búsqueda de Rutas:</h4>
+            <ol>
+                <li>Cálculo de pagos mensuales usando la fórmula de amortización.</li>
+                <li>Evaluación de ${result.length} opciones de financiamiento.</li>
+                <li>Ordenamiento por costo total para encontrar la ruta óptima.</li>
+                <li>Complejidad: O(n log n) para comparación de rutas.</li>
+            </ol>
+            <div class="formula">
+                PMT = P * (r(1+r)^n) / ((1+r)^n - 1)
+                <br>
+                Donde: P = Principal, r = Tasa mensual, n = Número de pagos
+            </div>
+        </div>`,
+
+    'group_debts': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo Union-Find:</h4>
+            <ol>
+                <li>Inicialización de ${result.reduce((sum, g) => sum + g.members.length, 0)} nodos.</li>
+                <li>Union de nodos conectados por deudas.</li>
+                <li>Optimización de transacciones dentro de cada grupo.</li>
+                <li>Complejidad: O(α(n)) por operación, donde α es la función inversa de Ackermann.</li>
+            </ol>
+            <div class="optimization">
+                Transacciones originales: ${result.reduce((sum, g) => sum + g.transactions.length, 0)}
+                <br>
+                Transacciones optimizadas: ${result.reduce((sum, g) => sum + g.transactions.length, 0)}
+            </div>
+        </div>`,
+
+    'minimize_costs': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo de Kruskal (MST):</h4>
+            <ol>
+                <li>Ordenamiento de ${result.conexiones.length} conexiones por costo.</li>
+                <li>Selección iterativa de aristas mínimas.</li>
+                <li>Verificación de ciclos usando Union-Find.</li>
+                <li>Complejidad: O(E log E) donde E es el número de conexiones.</li>
+            </ol>
+            <div class="tree-info">
+                Conexiones totales posibles: ${Math.pow(result.conexiones.length + 1, 2)/2}
+                <br>
+                Conexiones en MST: ${result.conexiones.length}
+            </div>
+        </div>`,
+
+    'optimize_savings': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento de Programación Dinámica:</h4>
+            <ol>
+                <li>Cálculo de subproblemas para ${result.length} tasas diferentes.</li>
+                <li>Construcción de tabla de valores futuros.</li>
+                <li>Optimización de la ruta de ahorro.</li>
+                <li>Complejidad: O(n*m) donde n = períodos, m = escenarios.</li>
+            </ol>
+            <div class="calculations">
+                Fórmula: FV = PMT * ((1 + r)^n - 1) / r
+                <br>
+                Donde: FV = Valor Futuro, PMT = Pago Mensual, r = Tasa, n = Períodos
+            </div>
+        </div>`,
+
+    'minimum_debt': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo Bellman-Ford:</h4>
+            <ol>
+                <li>Construcción del grafo con ${result.length} vértices (bancos).</li>
+                <li>Relajación iterativa de aristas (tasas).</li>
+                <li>Detección de ciclos negativos (arbitraje).</li>
+                <li>Complejidad: O(VE) donde V = vértices, E = aristas.</li>
+            </ol>
+            <div class="path-info">
+                Iteraciones realizadas: ${result.length * (result.length - 1)}
+                <br>
+                Camino óptimo encontrado con costo: $${result[0].costo_total.toLocaleString()}
+            </div>
+        </div>`,
+
+    'compare_rates': (result) => `
+        <div class="algorithm-steps">
+            <h4>Procedimiento del Algoritmo Floyd-Warshall:</h4>
+            <ol>
+                <li>Inicialización de matriz de distancias para ${result.hipotecas.length} bancos.</li>
+                <li>Actualización iterativa de caminos mínimos.</li>
+                <li>Detección de arbitraje entre tasas.</li>
+                <li>Complejidad: O(n³) donde n es el número de bancos.</li>
+            </ol>
+            <div class="matrix-info">
+                Comparaciones realizadas: ${Math.pow(result.hipotecas.length, 3)}
+                <br>
+                Oportunidades de arbitraje encontradas: ${result.arbitraje ? result.arbitraje.length : 0}
+            </div>
+        </div>`
+};
+
+function loadExample(type) {
+    fetch(`/load_example/${type}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById(type).value = data.example;
+            fillFormFromExample(type, data.example);
+        });
+}
+
+function fillFormFromExample(type, exampleData) {
+    try {
+        const lines = exampleData.split('\n');
+        
+        switch(type) {
+            case 'transactions':
+                const transForm = document.getElementById('transactions-form');
+                transForm.innerHTML = '';
+                
+                lines.forEach(line => {
+                    const [date, amount] = line.split(': $');
+                    if (date && amount && !isNaN(parseFloat(amount))) {
+                        const entry = createTransactionEntry(date, parseFloat(amount).toFixed(2));
+                        transForm.appendChild(entry);
+                    }
+                });
+                break;
+
+            case 'financing':
+                const finForm = document.getElementById('financing-form');
+                finForm.innerHTML = '';
+                
+                lines.forEach(line => {
+                    const [_, amount, rate, term] = line.match(/Opción \d+: \$(\d+), (\d+\.?\d*)% anual, (\d+) meses/);
+                    const entry = createFinancingEntry(amount, rate, term);
+                    finForm.appendChild(entry);
+                });
+                break;
+
+            case 'debts':
+                const debtsForm = document.getElementById('debts-form');
+                debtsForm.innerHTML = '';
+                
+                lines.forEach(line => {
+                    const [debtor, rest] = line.split(' debe $');
+                    const [amount, creditor] = rest.split(' a ');
+                    const entry = createDebtEntry(debtor, amount, creditor);
+                    debtsForm.appendChild(entry);
+                });
+                break;
+
+            case 'branches':
+                const branchForm = document.getElementById('branches-form');
+                branchForm.innerHTML = '';
+                
+                lines.forEach(line => {
+                    const [cities, cost] = line.split(': $');
+                    const [city1, city2] = cities.split(' - ');
+                    const entry = createBranchEntry(city1, city2, cost);
+                    branchForm.appendChild(entry);
+                });
+                break;
+
+            case 'savings':
+                const [goal, years, monthly] = lines.map(line => line.split('$')[1] || line.split(': ')[1]);
+                document.getElementById('savings-goal').value = goal;
+                document.getElementById('savings-years').value = years.split(' ')[0];
+                document.getElementById('monthly-savings').value = monthly;
+                break;
+
+            case 'min-debt':
+                const minDebtForm = document.getElementById('min-debt-form');
+                minDebtForm.innerHTML = '';
+                
+                lines.forEach(line => {
+                    const [bank, rest] = line.split(': $');
+                    const [amount, rate] = rest.split(' al ');
+                    const rateValue = rate.split('%')[0];
+                    const entry = createMinDebtEntry(bank, amount, rateValue);
+                    minDebtForm.appendChild(entry);
+                });
+                break;
+
+            case 'rates':
+                const ratesForm = document.getElementById('rates-form');
+                ratesForm.innerHTML = '';
+                
+                let currentBank = '';
+                let rates = {};
+                
+                lines.forEach(line => {
+                    if (!line.includes('%')) {
+                        currentBank = line.split(':')[0];
+                        rates = {};
+                    } else {
+                        const [product, rate] = line.split(': ');
+                        rates[product] = rate.split('%')[0];
+                        if (Object.keys(rates).length === 2) {
+                            const entry = createBankRateEntry(currentBank, rates['Hipoteca'], rates['Préstamo personal']);
+                            ratesForm.appendChild(entry);
+                        }
+                    }
+                });
+                break;
+        }
+    } catch (error) {
+        console.error('Error al llenar el formulario:', error);
+    }
+}
+
+function createTransactionEntry(date = '', amount = '') {
+    const div = document.createElement('div');
+    div.className = 'transaction-entry';
+    div.innerHTML = `
+        <input type="date" class="date-input" required value="${date}">
+        <input type="number" step="0.01" min="0" placeholder="Monto" class="amount-input" required value="${amount}">
+        <button type="button" class="remove-entry">-</button>
+    `;
+    return div;
+}
+
+function createFinancingEntry(amount = '', rate = '', term = '') {
+    const div = document.createElement('div');
+    div.className = 'financing-entry';
+    div.innerHTML = `
+        <input type="number" step="1000" min="0" placeholder="Monto del préstamo" class="amount-input" required value="${amount}">
+        <input type="number" step="0.01" min="0" max="100" placeholder="Tasa anual %" class="rate-input" required value="${rate}">
+        <input type="number" step="1" min="1" max="360" placeholder="Plazo (meses)" class="term-input" required value="${term}">
+        <button type="button" class="remove-entry">-</button>
+    `;
+    return div;
+}
+
+function createDebtEntry(debtor = '', amount = '', creditor = '') {
+    const div = document.createElement('div');
+    div.className = 'debt-entry';
+    div.innerHTML = `
+        <input type="text" placeholder="Deudor" class="debtor-input" required value="${debtor}">
+        <input type="number" step="0.01" min="0" placeholder="Monto" class="amount-input" required value="${amount}">
+        <input type="text" placeholder="Acreedor" class="creditor-input" required value="${creditor}">
+        <button type="button" class="remove-entry">-</button>
+    `;
+    return div;
+}
+
+function createBranchEntry(city1 = '', city2 = '', cost = '') {
+    const div = document.createElement('div');
+    div.className = 'branch-entry';
+    div.innerHTML = `
+        <input type="text" placeholder="Ciudad 1" class="city1-input" required value="${city1}">
+        <input type="text" placeholder="Ciudad 2" class="city2-input" required value="${city2}">
+        <input type="number" step="1" min="0" placeholder="Costo de conexión" class="cost-input" required value="${cost}">
+        <button type="button" class="remove-entry">-</button>
+    `;
+    return div;
+}
+
+function createMinDebtEntry(bank = '', amount = '', rate = '') {
+    const div = document.createElement('div');
+    div.className = 'debt-min-entry';
+    div.innerHTML = `
+        <input type="text" placeholder="Nombre del banco" class="bank-input" required value="${bank}">
+        <input type="number" step="0.01" min="0" placeholder="Monto" class="amount-input" required value="${amount}">
+        <input type="number" step="0.01" min="0" max="100" placeholder="Tasa anual %" class="rate-input" required value="${rate}">
+        <button type="button" class="remove-entry">-</button>
+    `;
+    return div;
+}
+
+function createBankRateEntry(bank = '', mortgageRate = '', personalRate = '') {
+    const div = document.createElement('div');
+    div.className = 'bank-rate-entry';
+    div.innerHTML = `
+        <input type="text" placeholder="Nombre del banco" class="bank-input" required value="${bank}">
+        <div class="rates-inputs">
+            <label>Hipoteca:</label>
+            <input type="number" step="0.01" min="0" max="100" placeholder="Tasa %" class="mortgage-rate" required value="${mortgageRate}">
+            <label>Préstamo personal:</label>
+            <input type="number" step="0.01" min="0" max="100" placeholder="Tasa %" class="personal-rate" required value="${personalRate}">
+        </div>
+        <button type="button" class="remove-entry">-</button>
+    `;
+    return div;
+}
+
+function calculate(operation) {
+    const formMapping = {
+        'sort_transactions': 'transactions',
+        'financing_routes': 'financing',
+        'group_debts': 'debts',
+        'minimize_costs': 'branches',
+        'optimize_savings': 'savings',
+        'minimum_debt': 'min-debt',
+        'compare_rates': 'rates'
+    };
+
+    const baseId = formMapping[operation];
+    if (!baseId) {
+        console.error('Operación no válida:', operation);
+        return;
+    }
+
+    const formId = `${baseId}-form`;
+    const resultDiv = document.getElementById(`${baseId}-result`);
+    
+    console.log('Intentando procesar formulario:', formId);
+
+    if (!updateTextarea(formId, baseId, operation)) {
+        resultDiv.innerHTML = `<div class="error">Por favor, complete todos los campos requeridos.</div>`;
+        return;
+    }
+
+    const data = document.getElementById(baseId).value;
+    console.log('Datos a enviar:', data);
+
+    fetch(`/calculate/${operation}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({data: data}),
+    })
+    .then(response => response.json())
+    .then(result => {
+        console.log('Resultado recibido:', result);
+        if (result.error) {
+            resultDiv.innerHTML = `<div class="error">${result.error}</div>`;
+            return;
+        }
+        
+        try {
+            const formattedResult = formatResult(operation, result);
+            resultDiv.innerHTML = formattedResult;
+        } catch (error) {
+            console.error('Error al formatear resultado:', error);
+            resultDiv.innerHTML = `<div class="error">Error al procesar el resultado: ${error.message}</div>`;
+        }
+    })
+    .catch(error => {
+        console.error('Error en la petición:', error);
+        resultDiv.innerHTML = `<div class="error">Error al procesar la solicitud: ${error.message}</div>`;
+    });
+}
+
+function formatResult(operation, result) {
+    // Verificar si el resultado es válido
+    if (!result || typeof result === 'string' || result.error) {
+        return `<div class="error">${result.error || 'Error al procesar los datos'}</div>`;
+    }
+
+    try {
+        let baseHtml = '';
+        
+        switch(operation) {
+            case 'sort_transactions':
+                if (!result.por_fecha || !result.por_monto) {
+                    throw new Error('Datos de transacciones inválidos');
+                }
+                const maxTransaction = result.por_monto[result.por_monto.length - 1];
+                const [maxDate, maxAmount] = maxTransaction.split(': $');
+                baseHtml = `
+                    <h3>Ordenado por Fecha:</h3>
+                    <table>
+                        <tr><th>Fecha</th><th>Monto</th></tr>
+                        ${result.por_fecha.map(trans => {
+                            const [date, amount] = trans.split(': $');
+                            return `<tr><td>${date}</td><td>$${amount}</td></tr>`;
+                        }).join('')}
+                    </table>
+                    <h3>Ordenado por Monto:</h3>
+                    <table>
+                        <tr><th>Fecha</th><th>Monto</th></tr>
+                        ${result.por_monto.map(trans => {
+                            const [date, amount] = trans.split(': $');
+                            return `<tr><td>${date}</td><td>$${amount}</td></tr>`;
+                        }).join('')}
+                    </table>
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>La transacción más significativa fue de $${maxAmount} realizada el ${maxDate}.</p>
+                        <p>Total de transacciones analizadas: ${result.por_fecha.length}</p>
+                    </div>`;
+                break;
+
+            case 'financing_routes':
+                if (!Array.isArray(result)) {
+                    throw new Error('Datos de financiamiento inválidos');
+                }
+                const bestOption = result[0];
+                const worstOption = result[result.length - 1];
+                const savings = worstOption.costo_total - bestOption.costo_total;
+                baseHtml = `
+                    <table>
+                        <tr>
+                            <th>Monto</th>
+                            <th>Tasa Anual</th>
+                            <th>Plazo (meses)</th>
+                            <th>Pago Mensual</th>
+                            <th>Costo Total</th>
+                        </tr>
+                        ${result.map(option => `
+                            <tr>
+                                <td>$${option.monto.toLocaleString()}</td>
+                                <td>${option.tasa}%</td>
+                                <td>${option.plazo}</td>
+                                <td>$${option.pago_mensual.toLocaleString()}</td>
+                                <td>$${option.costo_total.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>La opción m��s económica requiere un pago mensual de $${bestOption.pago_mensual.toLocaleString()} 
+                           con una tasa del ${bestOption.tasa}% a ${bestOption.plazo} meses.</p>
+                        <p>Eligiendo esta opción, se ahorraría $${savings.toLocaleString()} 
+                           comparado con la opción más costosa.</p>
+                    </div>`;
+                break;
+
+            case 'group_debts':
+                if (!Array.isArray(result)) {
+                    throw new Error('Datos de deudas inválidos');
+                }
+                baseHtml = `
+                    <h3>Grupos de Deudas Relacionadas:</h3>
+                    ${result.map((group, index) => `
+                        <div class="debt-group">
+                            <strong>Grupo ${index + 1}:</strong> ${group.members.join(', ')}
+                            <h4>Transacciones optimizadas:</h4>
+                            <ul>
+                                ${group.transactions.map(t => `
+                                    <li>${t.from} debe pagar $${t.amount.toLocaleString()} a ${t.to}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `).join('')}
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>Se identificaron ${result.length} grupos de deudas relacionadas.</p>
+                        <p>Total de transacciones optimizadas: ${result.reduce((sum, group) => 
+                            sum + group.transactions.length, 0)}</p>
+                    </div>`;
+                break;
+
+            case 'minimize_costs':
+                if (!result.conexiones) {
+                    throw new Error('Datos de costos inválidos');
+                }
+                const savings_percentage = ((result.conexiones.length / 
+                    (Math.pow(result.conexiones.length + 1, 2) - (result.conexiones.length + 1)) * 2) * 100).toFixed(1);
+                baseHtml = `
+                    <h3>Conexiones Óptimas:</h3>
+                    <table>
+                        <tr><th>Conexión</th><th>Costo</th></tr>
+                        ${result.conexiones.map(conn => `
+                            <tr><td>${conn.split(': $')[0]}</td><td>$${conn.split(': $')[1]}</td></tr>
+                        `).join('')}
+                    </table>
+                    <div class="total-cost">
+                        <strong>Costo Total:</strong> $${result.costo_total.toLocaleString()}
+                    </div>
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>Se logró una red óptima con ${result.conexiones.length} conexiones.</p>
+                        <p>Esta solución utiliza solo el ${savings_percentage}% de las posibles conexiones,
+                           maximizando la eficiencia de la red.</p>
+                    </div>`;
+                break;
+
+            case 'optimize_savings':
+                if (!Array.isArray(result)) {
+                    throw new Error('Datos de ahorro inválidos');
+                }
+                const bestScenario = result.reduce((max, scenario) => 
+                    parseFloat(scenario.valor_futuro) > parseFloat(max.valor_futuro) ? scenario : max
+                );
+                baseHtml = `
+                    <table>
+                        <tr>
+                            <th>Tasa Anual</th>
+                            <th>Ahorro Mensual</th>
+                            <th>Valor Futuro</th>
+                        </tr>
+                        ${result.map(scenario => `
+                            <tr>
+                                <td>${scenario.tasa_anual}</td>
+                                <td>$${scenario.ahorro_mensual.toLocaleString()}</td>
+                                <td>$${scenario.valor_futuro.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>El mejor escenario se logra con una tasa anual del ${bestScenario.tasa_anual},
+                           alcanzando un valor futuro de $${bestScenario.valor_futuro.toLocaleString()}.</p>
+                        <p>Con un ahorro mensual de $${bestScenario.ahorro_mensual.toLocaleString()},
+                           se maximiza el retorno de la inversión.</p>
+                    </div>`;
+                break;
+
+            case 'minimum_debt':
+                if (!Array.isArray(result)) {
+                    throw new Error('Datos de deuda mínima inválidos');
+                }
+                const bestDebt = result[0];
+                const totalDebt = result.reduce((sum, debt) => sum + debt.monto, 0);
+                baseHtml = `
+                    <table>
+                        <tr>
+                            <th>Banco</th>
+                            <th>Monto</th>
+                            <th>Tasa Anual</th>
+                            <th>Pago Mensual</th>
+                            <th>Costo Total</th>
+                        </tr>
+                        ${result.map(debt => `
+                            <tr>
+                                <td>${debt.banco}</td>
+                                <td>$${debt.monto.toLocaleString()}</td>
+                                <td>${debt.tasa}%</td>
+                                <td>$${debt.pago_mensual.toLocaleString()}</td>
+                                <td>$${debt.costo_total.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>La deuda más conveniente es con ${bestDebt.banco} con una tasa del ${bestDebt.tasa}%.</p>
+                        <p>Deuda total: $${totalDebt.toLocaleString()}</p>
+                        <p>Pago mensual más bajo: $${bestDebt.pago_mensual.toLocaleString()}</p>
+                    </div>`;
+                break;
+
+            case 'compare_rates':
+                if (!result.hipotecas || !result.prestamos_personales) {
+                    throw new Error('Datos de tasas inválidos');
+                }
+                const bestMortgage = result.hipotecas[0];
+                const bestPersonal = result.prestamos_personales[0];
+                baseHtml = `
+                    <h3>Tasas Hipotecarias:</h3>
+                    <table>
+                        <tr><th>Banco</th><th>Tasa</th></tr>
+                        ${result.hipotecas.map(h => `
+                            <tr><td>${h.banco}</td><td>${h.tasa}%</td></tr>
+                        `).join('')}
+                    </table>
+                    <h3>Tasas de Préstamos Personales:</h3>
+                    <table>
+                        <tr><th>Banco</th><th>Tasa</th></tr>
+                        ${result.prestamos_personales.map(p => `
+                            <tr><td>${p.banco}</td><td>${p.tasa}%</td></tr>
+                        `).join('')}
+                    </table>
+                    ${result.arbitraje.length > 0 ? `
+                        <h3>Oportunidades de Arbitraje:</h3>
+                        <ul>
+                            ${result.arbitraje.map(a => `
+                                <li>Ruta: ${a.ruta} (diferencia: ${a.diferencia.toFixed(2)}%)</li>
+                            `).join('')}
+                        </ul>
+                    ` : ''}
+                    <div class="conclusion">
+                        <h4>Conclusión:</h4>
+                        <p>Mejor tasa hipotecaria: ${bestMortgage.banco} con ${bestMortgage.tasa}%</p>
+                        <p>Mejor tasa personal: ${bestPersonal.banco} con ${bestPersonal.tasa}%</p>
+                        <p>Diferencia entre mejor y peor tasa hipotecaria: 
+                           ${(result.hipotecas[result.hipotecas.length-1].tasa - bestMortgage.tasa).toFixed(2)}%</p>
+                        ${result.arbitraje.length > 0 ? `
+                            <p>Se encontraron ${result.arbitraje.length} oportunidades de arbitraje entre bancos.</p>
+                        ` : ''}
+                    </div>`;
+                break;
+
+            default:
+                return `<div class="error">Operación no soportada</div>`;
+        }
+
+        baseHtml += '<div class="visualization-container" id="viz-' + operation + '"></div>';
+        
+        setTimeout(() => {
+            if (algorithmVisualizations[operation]) {
+                algorithmVisualizations[operation](result, 'viz-' + operation);
+            }
+        }, 100);
+
+        return baseHtml + (algorithmSteps[operation] ? algorithmSteps[operation](result) : '');
+    } catch (error) {
+        console.error('Error al formatear resultado:', error);
+        return `<div class="error">Error al procesar los datos: ${error.message}</div>`;
+    }
+}
+
+function initializeForms() {
+    document.querySelectorAll('.add-entry').forEach(button => {
+        button.addEventListener('click', function() {
+            const container = this.closest('.form-container');
+            const entryType = container.id.replace('-form', '');
+            let newEntry;
+            
+            // una nueva entrada  del tipo correcto
+            switch(entryType) {
+                case 'transactions':
+                    newEntry = createTransactionEntry();
+                    break;
+                case 'financing':
+                    newEntry = createFinancingEntry();
+                    break;
+                case 'debts':
+                    newEntry = createDebtEntry();
+                    break;
+                case 'branches':
+                    newEntry = createBranchEntry();
+                    break;
+                case 'min-debt':
+                    newEntry = createMinDebtEntry();
+                    break;
+                case 'rates':
+                    newEntry = createBankRateEntry();
+                    break;
+            }
+            
+            if (newEntry) {
+                // Cambiar el botón + por -
+                const addButton = newEntry.querySelector('button');
+                addButton.textContent = '-';
+                addButton.classList.remove('add-entry');
+                addButton.classList.add('remove-entry');
+                addButton.addEventListener('click', function() {
+                    this.closest('div').remove();
+                });
+                
+                container.appendChild(newEntry);
+            }
+        });
+    });
+}
+
+function updateTextarea(formId, baseId, operation) {
+    const form = document.getElementById(formId);
+    const textarea = document.getElementById(baseId);
+
+    if (!form || !textarea) {
+        console.error('No se encontraron los elementos del formulario', {
+            formId,
+            baseId,
+            formExists: !!form,
+            textareaExists: !!textarea
+        });
+        return false;
+    }
+
+    try {
+        let text = '';
+        let isValid = false;
+
+        // validacion
+        switch(operation) {
+            case 'sort_transactions':
+                const transactions = Array.from(form.querySelectorAll('.transaction-entry'))
+                    .map(entry => ({
+                        date: entry.querySelector('.date-input')?.value,
+                        amount: entry.querySelector('.amount-input')?.value
+                    }))
+                    .filter(t => t.date && t.amount);
+
+                if (transactions.length > 0) {
+                    text = transactions.map(t => `${t.date}: $${t.amount}`).join('\n');
+                    isValid = true;
+                }
+                break;
+
+            case 'financing_routes':
+                const financings = Array.from(form.querySelectorAll('.financing-entry'))
+                    .map(entry => ({
+                        amount: entry.querySelector('.amount-input').value,
+                        rate: entry.querySelector('.rate-input').value,
+                        term: entry.querySelector('.term-input').value
+                    }))
+                    .filter(f => f.amount && f.rate && f.term);
+
+                if (financings.length > 0) {
+                    text = financings.map((f, i) => 
+                        `Opción ${i + 1}: $${f.amount}, ${f.rate}% anual, ${f.term} meses`
+                    ).join('\n');
+                    isValid = true;
+                }
+                break;
+
+            case 'group_debts':
+                const debts = Array.from(form.querySelectorAll('.debt-entry'))
+                    .map(entry => ({
+                        debtor: entry.querySelector('.debtor-input').value,
+                        amount: entry.querySelector('.amount-input').value,
+                        creditor: entry.querySelector('.creditor-input').value
+                    }))
+                    .filter(d => d.debtor && d.amount && d.creditor);
+
+                if (debts.length > 0) {
+                    text = debts.map(d => 
+                        `${d.debtor} debe $${d.amount} a ${d.creditor}`
+                    ).join('\n');
+                    isValid = true;
+                }
+                break;
+
+            case 'minimize_costs':
+                const branches = Array.from(form.querySelectorAll('.branch-entry'))
+                    .map(entry => ({
+                        city1: entry.querySelector('.city1-input').value,
+                        city2: entry.querySelector('.city2-input').value,
+                        cost: entry.querySelector('.cost-input').value
+                    }))
+                    .filter(b => b.city1 && b.city2 && b.cost);
+
+                if (branches.length > 0) {
+                    text = branches.map(b => 
+                        `${b.city1} - ${b.city2}: $${b.cost}`
+                    ).join('\n');
+                    isValid = true;
+                }
+                break;
+
+            case 'optimize_savings':
+                const goal = document.getElementById('savings-goal').value;
+                const years = document.getElementById('savings-years').value;
+                const monthly = document.getElementById('monthly-savings').value;
+
+                if (goal && years && monthly) {
+                    text = `Meta: $${goal}\nPlazo: ${years} años\nAhorro mensual sugerido: $${monthly}`;
+                    isValid = true;
+                }
+                break;
+
+            case 'minimum_debt':
+                const minDebts = Array.from(form.querySelectorAll('.debt-min-entry'))
+                    .map(entry => ({
+                        bank: entry.querySelector('.bank-input').value,
+                        amount: entry.querySelector('.amount-input').value,
+                        rate: entry.querySelector('.rate-input').value
+                    }))
+                    .filter(d => d.bank && d.amount && d.rate);
+
+                if (minDebts.length > 0) {
+                    text = minDebts.map(d => 
+                        `${d.bank}: $${d.amount} al ${d.rate}% anual`
+                    ).join('\n');
+                    isValid = true;
+                }
+                break;
+
+            case 'compare_rates':
+                const banks = Array.from(form.querySelectorAll('.bank-rate-entry'))
+                    .map(entry => ({
+                        bank: entry.querySelector('.bank-input').value,
+                        mortgage: entry.querySelector('.mortgage-rate').value,
+                        personal: entry.querySelector('.personal-rate').value
+                    }))
+                    .filter(b => b.bank && b.mortgage && b.personal);
+
+                if (banks.length > 0) {
+                    text = banks.map(b => 
+                        `${b.bank}:\nHipoteca: ${b.mortgage}%\nPréstamo personal: ${b.personal}%`
+                    ).join('\n');
+                    isValid = true;
+                }
+                break;
+        }
+
+        if (!isValid) {
+            console.error('No hay datos válidos para procesar en', formId);
+            return false;
+        }
+
+        textarea.value = text;
+        console.log('Texto actualizado para', baseId, ':', text);
+        return true;
+
+    } catch (error) {
+        console.error('Error al actualizar textarea:', error);
+        return false;
+    }
+}
+
+function toggleTutorial(tutorialId) {
+    const tutorial = document.getElementById(tutorialId);
+    const isHidden = tutorial.style.display === 'none';
+    
+    document.querySelectorAll('.tutorial').forEach(t => {
+        t.style.display = 'none';
+    });
+    
+    tutorial.style.display = isHidden ? 'block' : 'none';
+    
+    const button = tutorial.previousElementSibling.querySelector('.tutorial-btn');
+    button.textContent = isHidden ? 'Ocultar Tutorial' : 'Ver Tutorial';
+}
+
+document.addEventListener('DOMContentLoaded', initializeForms); 
+
+function compararTasas() {
+    const banco1 = document.getElementById('banco1').value;
+    const banco2 = document.getElementById('banco2').value;
+    
+    if (banco1 === banco2) {
+        alert('Por favor seleccione dos bancos diferentes');
+        return;
+    }
+
+    actualizarGrafico(banco1, banco2);
+} 
+def merge_sort(arr, key=lambda x: x):
+    if len(arr) <= 1:
+        return arr
+    
+
+    mid = len(arr) // 2
+    left = merge_sort(arr[:mid], key)
+    right = merge_sort(arr[mid:], key)
+    
+
+    return merge(left, right, key)
+
+def merge(left, right, key):
+    result = []
+    i = j = 0
+    
+    while i < len(left) and j < len(right):
+        if key(left[i]) <= key(right[j]):
+            result.append(left[i])
+            i += 1
+        else:
+            result.append(right[j])
+            j += 1
+    
+    result.extend(left[i:])
+    result.extend(right[j:])
+    return result
+
+def sort_transactions(data):
+    #  algoritmo para ordenar por fecha y monto
+
+    try:
+        transactions = [line.strip().split(': $') for line in data.split('\n')]
+        transactions = [(date, float(amount)) for date, amount in transactions]
+        
+        sorted_by_date = merge_sort(transactions, key=lambda x: x[0])
+        sorted_by_amount = merge_sort(transactions, key=lambda x: x[1])
+        
+        return {
+            'por_fecha': [f"{date}: ${amount}" for date, amount in sorted_by_date],
+            'por_monto': [f"{date}: ${amount}" for date, amount in sorted_by_amount]
+        }
+    except Exception as e:
+        return {'error': str(e)} 
+def optimize_savings(data):
+    # ahorros
+    try:
+        lines = data.split('\n')
+        goal = float(lines[0].split('$')[1])
+        years = int(lines[1].split(':')[1].split()[0])
+        monthly_save = float(lines[2].split('$')[1])
+        
+        # perfiles
+        base_rates = {
+            'Conservador': [0.04, 0.06],
+            'Moderado': [0.07, 0.12],
+            'Agresivo': [0.13, 0.18] 
+        }
+        
+        dp = {}
+        scenarios = []
+        
+        def calculate_future_value(monthly_amount, rate, months, inflation=0.04):
+            real_rate = (1 + rate) / (1 + inflation) - 1
+            future_value = 0
+            accumulated = monthly_amount
+            
+            for month in range(months):
+                month_key = (monthly_amount, rate, month)
+                if month_key in dp:
+                    future_value = dp[month_key]
+                else:
+                    if month > 0:
+                        accumulated = accumulated * (1 + real_rate/12) + monthly_amount
+                        future_value = accumulated
+                    else:
+                        future_value = monthly_amount
+                    dp[month_key] = future_value
+            
+            return future_value
+        
+        months = years * 12
+        
+        for profile, rate_range in base_rates.items():
+            min_rate, max_rate = rate_range
+            rates = [min_rate + (max_rate - min_rate) * i / 2 for i in range(3)]
+            
+            for rate in rates:
+                for adjustment in [0.8, 1.0, 1.2]:
+                    adjusted_monthly = monthly_save * adjustment
+                    future_value = calculate_future_value(adjusted_monthly, rate, months)
+                    
+                    total_invested = adjusted_monthly * months
+                    investment_return = future_value - total_invested
+                    roi_percentage = (investment_return / total_invested) * 100
+                    
+                    scenarios.append({
+                        'perfil': profile,
+                        'tasa_anual': f"{rate*100:.1f}%",
+                        'ahorro_mensual': round(adjusted_monthly, 2),
+                        'valor_futuro': round(future_value, 2),
+                        'retorno_inversion': round(investment_return, 2),
+                        'roi_porcentaje': round(roi_percentage, 2)
+                    })
+        
+        scenarios.sort(key=lambda x: x['valor_futuro'], reverse=True)
+        
+        return scenarios
+    except Exception as e:
+        return {'error': str(e)} 
+def calculate_monthly_payment(principal, monthly_rate, term):
+    return principal * (monthly_rate * (1 + monthly_rate)**term) / ((1 + monthly_rate)**term - 1)
+
+def calculate_minimum_debt(data):
+
+    try:
+        lines = data.split('\n')
+        debts = []
+        
+        for line in lines:
+            bank, info = line.split(': $')
+            amount, rate = info.split(' al ')
+            amount = float(amount)
+            rate = float(rate.split('%')[0])
+            
+            monthly_rate = rate/100/12
+            term = 24
+            monthly_payment = calculate_monthly_payment(amount, monthly_rate, term)
+            total_cost = monthly_payment * term
+            
+            debts.append({
+                'banco': bank,
+                'monto': amount,
+                'tasa': rate,
+                'pago_mensual': round(monthly_payment, 2),
+                'costo_total': round(total_cost, 2)
+            })
+        
+        return sorted(debts, key=lambda x: x['costo_total'])
+    except Exception as e:
+        return {'error': str(e)} 
+def calculate_monthly_payment(principal, monthly_rate, term):
+    return principal * (monthly_rate * (1 + monthly_rate)**term) / ((1 + monthly_rate)**term - 1)
+
+def find_financing_routes(data):
+    try:
+        options = [line.strip().split(', ') for line in data.split('\n')]
+        processed_options = []
+        
+        for option in options:
+            amount = float(option[0].split('$')[1])
+            rate = float(option[1].split('%')[0])
+            term = int(option[2].split()[0])
+            
+            monthly_payment = calculate_monthly_payment(amount, rate/100/12, term)
+            total_cost = monthly_payment * term
+            
+            processed_options.append({
+                'monto': amount,
+                'tasa': rate,
+                'plazo': term,
+                'pago_mensual': round(monthly_payment, 2),
+                'costo_total': round(total_cost, 2)
+            })
+        
+        return sorted(processed_options, key=lambda x: x['costo_total'])
+    except Exception as e:
+        return {'error': str(e)} 
+def group_debts(data):
+
+    try:
+        lines = data.split('\n')
+        clients = {}
+        debt_graph = {}  # grafo
+        
+        def find(client):
+            if clients[client] != client:
+                clients[client] = find(clients[client])
+            return clients[client]
+        
+        def union(client1, client2):
+            root1 = find(client1)
+            root2 = find(client2)
+            if root1 != root2:
+                clients[root2] = root1
+        
+        # deudas
+        for line in lines:
+            debtor, rest = line.split(' debe $')
+            amount, creditor = rest.split(' a ')
+            amount = float(amount)
+            
+            if debtor not in debt_graph:
+                debt_graph[debtor] = {'balance': 0, 'transactions': []}
+            if creditor not in debt_graph:
+                debt_graph[creditor] = {'balance': 0, 'transactions': []}
+            
+            debt_graph[debtor]['balance'] -= amount
+            debt_graph[creditor]['balance'] += amount
+            debt_graph[debtor]['transactions'].append((creditor, amount))
+            
+            if debtor not in clients:
+                clients[debtor] = debtor
+            if creditor not in clients:
+                clients[creditor] = creditor
+            union(debtor, creditor)
+        
+        groups = {}
+        for client in clients:
+            root = find(client)
+            if root not in groups:
+                groups[root] = []
+            groups[root].append(client)
+        
+        optimized_groups = []
+        for group in groups.values():
+            group_transactions = []
+            #  deudores y acreedores en el grupo
+            debtors = [(c, debt_graph[c]['balance']) for c in group if debt_graph[c]['balance'] < 0]
+            creditors = [(c, debt_graph[c]['balance']) for c in group if debt_graph[c]['balance'] > 0]
+            
+            # ordenar por monto
+            debtors.sort(key=lambda x: x[1])
+            creditors.sort(key=lambda x: x[1], reverse=True)
+            
+            # esto sirve para optimizar pagos
+            i, j = 0, 0
+            while i < len(debtors) and j < len(creditors):
+                debtor, debt = debtors[i]
+                creditor, credit = creditors[j]
+                amount = min(abs(debt), credit)
+                
+                if amount > 0:
+                    group_transactions.append({
+                        'from': debtor,
+                        'to': creditor,
+                        'amount': round(amount, 2)
+                    })
+                
+                debtors[i] = (debtor, debt + amount)
+                creditors[j] = (creditor, credit - amount)
+                
+                if abs(debtors[i][1]) < 0.01:
+                    i += 1
+                if abs(creditors[j][1]) < 0.01:
+                    j += 1
+            
+            optimized_groups.append({
+                'members': group,
+                'transactions': group_transactions
+            })
+        
+        return optimized_groups
+    except Exception as e:
+        return {'error': str(e)}
+def minimize_branch_costs(data):
+    try:
+        lines = data.split('\n')
+        edges = []
+        vertices = set()
+        
+        # aristas
+        for line in lines:
+            cities, cost = line.split(': $')
+            city1, city2 = cities.split(' - ')
+            cost = int(cost)
+            edges.append((cost, city1, city2))
+            vertices.add(city1)
+            vertices.add(city2)
+        
+        parent = {city: city for city in vertices}
+        
+        def find(city):
+            if parent[city] != city:
+                parent[city] = find(parent[city])
+            return parent[city]
+        
+        def union(city1, city2):
+            parent[find(city2)] = find(city1)
+        
+        minimum_spanning_tree = []
+        total_cost = 0
+        
+        for cost, city1, city2 in sorted(edges):
+            if find(city1) != find(city2):
+                union(city1, city2)
+                minimum_spanning_tree.append((city1, city2, cost))
+                total_cost += cost
+        
+        return {
+            'conexiones': [f"{city1} - {city2}: ${cost}" for city1, city2, cost in minimum_spanning_tree],
+            'costo_total': total_cost
+        }
+    except Exception as e:
+        return {'error': str(e)} 
+def compare_bank_rates(data):
+    """tasas"""
+    try:
+        lines = data.split('\n')
+        banks = {}
+        rates_matrix = {}
+        current_bank = None
+        
+        # parseo
+        for line in lines:
+            if ':' in line and 'Hipoteca' not in line and 'Préstamo' not in line:
+                current_bank = line.split(':')[0]
+                banks[current_bank] = {}
+            elif current_bank and '%' in line:
+                product, rate = line.split(': ')
+                banks[current_bank][product] = float(rate.split('%')[0])
+                
+                # matriz
+                if current_bank not in rates_matrix:
+                    rates_matrix[current_bank] = {}
+                for other_bank in banks:
+                    if other_bank not in rates_matrix:
+                        rates_matrix[other_bank] = {}
+                    rates_matrix[current_bank][other_bank] = float('inf')
+                    rates_matrix[other_bank][current_bank] = float('inf')
+        
+        # diferencias
+        bank_list = list(banks.keys())
+        for i in range(len(bank_list)):
+            for j in range(len(bank_list)):
+                if i != j:
+                    bank1, bank2 = bank_list[i], bank_list[j]
+                    for product in ['Hipoteca', 'Préstamo personal']:
+                        if product in banks[bank1] and product in banks[bank2]:
+                            diff = banks[bank1][product] - banks[bank2][product]
+                            rates_matrix[bank1][bank2] = min(rates_matrix[bank1][bank2], diff)
+        
+        # arbitraje
+        arbitrage_opportunities = []
+        for k in bank_list:
+            for i in bank_list:
+                for j in bank_list:
+                    if rates_matrix[i][j] > rates_matrix[i][k] + rates_matrix[k][j]:
+                        rates_matrix[i][j] = rates_matrix[i][k] + rates_matrix[k][j]
+                        arbitrage_opportunities.append({
+                            'ruta': f"{i} → {k} → {j}",
+                            'diferencia': abs(rates_matrix[i][j])
+                        })
+        
+        # resultados
+        hipotecas = [{'banco': bank, 'tasa': banks[bank]['Hipoteca']} 
+                    for bank in banks if 'Hipoteca' in banks[bank]]
+        prestamos = [{'banco': bank, 'tasa': banks[bank]['Préstamo personal']} 
+                    for bank in banks if 'Préstamo personal' in banks[bank]]
+        
+        return {
+            'hipotecas': sorted(hipotecas, key=lambda x: x['tasa']),
+            'prestamos_personales': sorted(prestamos, key=lambda x: x['tasa']),
+            'arbitraje': sorted(arbitrage_opportunities, key=lambda x: x['diferencia'], reverse=True)[:3]
+        }
+    except Exception as e:
+        return {'error': str(e)}
+from .sort_transactions import sort_transactions
+from .financing_routes import find_financing_routes
+from .debt_groups import group_debts
+from .branch_costs import minimize_branch_costs
+from .savings_optimizer import optimize_savings
+from .minimum_debt import calculate_minimum_debt
+from .bank_rates import compare_bank_rates
+
+__all__ = [
+    'sort_transactions',
+    'find_financing_routes',
+    'group_debts',
+    'minimize_branch_costs',
+    'optimize_savings',
+    'calculate_minimum_debt',
+    'compare_bank_rates'
+] 
